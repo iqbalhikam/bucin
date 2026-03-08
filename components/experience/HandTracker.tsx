@@ -1,0 +1,356 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import { HandLandmarker, FilesetResolver, Landmark } from '@mediapipe/tasks-vision';
+import { useExperienceStore } from '@/lib/experience/store';
+import { detectCustomGesture } from '@/lib/gestures/utils';
+import customGestures from '@/src/data/customGestures.json';
+
+export const HandTracker = () => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { setHandPos, setTracking, setIsPinching, setLoveFormed, setCalibrationData, experienceStarted, isTracking, isPinching, calibrationData } = useExperienceStore();
+  const landmarkerRef = useRef<HandLandmarker | null>(null);
+  const lastPos = useRef({ x: 0.5, y: 0.5 });
+  const isCalibratingRef = useRef(false);
+  const metricsRef = useRef<{ thumbDist: number; indexDist: number; wristDist: number; verticalSpan: number } | null>(null);
+  const heartGestureStartTime = useRef<number | null>(null);
+  const [isHeartActive, setIsHeartActive] = useState(false);
+  const calibrationDataRef = useRef(calibrationData);
+  const trackingStartTime = useRef<number | null>(null);
+
+  useEffect(() => {
+    calibrationDataRef.current = calibrationData;
+  }, [calibrationData]);
+
+  useEffect(() => {
+    if (!experienceStarted) return;
+
+    let animationFrameId: number;
+
+    const drawHands = (ctx: CanvasRenderingContext2D, multiHandLandmarks: Landmark[][]) => {
+      ctx.clearRect(0, 0, 640, 480);
+
+      const connections = [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 4],
+        [0, 5],
+        [5, 6],
+        [6, 7],
+        [7, 8],
+        [0, 9],
+        [9, 10],
+        [10, 11],
+        [11, 12],
+        [0, 13],
+        [13, 14],
+        [14, 15],
+        [15, 16],
+        [0, 17],
+        [17, 18],
+        [18, 19],
+        [19, 20],
+        [5, 9],
+        [9, 13],
+        [13, 17],
+      ];
+
+      multiHandLandmarks.forEach((landmarks, index) => {
+        ctx.strokeStyle = index === 0 ? '#ff2d55' : '#00f2ff';
+        ctx.lineWidth = 2;
+        ctx.fillStyle = '#ffffff';
+
+        for (const [start, end] of connections) {
+          if (landmarks[start] && landmarks[end]) {
+            ctx.beginPath();
+            ctx.moveTo(landmarks[start].x * 640, landmarks[start].y * 480);
+            ctx.lineTo(landmarks[end].x * 640, landmarks[end].y * 480);
+            ctx.stroke();
+          }
+        }
+
+        for (const landmark of landmarks) {
+          ctx.beginPath();
+          ctx.arc(landmark.x * 640, landmark.y * 480, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+    };
+
+    const setupTracking = async () => {
+      try {
+        const vision = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm');
+        landmarkerRef.current = await HandLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`,
+            delegate: 'GPU',
+          },
+          runningMode: 'VIDEO',
+          numHands: 2,
+        });
+
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { width: 640, height: 480 },
+          });
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+            videoRef.current.onloadedmetadata = () => {
+              videoRef.current?.play();
+            };
+          }
+        }
+      } catch (error) {
+        console.error('Error in setupTracking:', error);
+      }
+    };
+
+    const detect = async () => {
+      if (videoRef.current && landmarkerRef.current && videoRef.current.readyState === 4) {
+        const startTimeMs = performance.now();
+        const results = landmarkerRef.current.detectForVideo(videoRef.current, startTimeMs);
+
+        if (results.landmarks && results.landmarks.length > 0) {
+          setTracking(true);
+
+          if (canvasRef.current) {
+            const ctx = canvasRef.current.getContext('2d');
+            if (ctx) drawHands(ctx, results.landmarks);
+          }
+
+          // Single Hand interaction (for cursor)
+          const primaryHand = results.landmarks[0];
+          const thumbTip = primaryHand[4];
+          const indexTip = primaryHand[8];
+
+          // Pinch for primary hand
+          const pinchDist = Math.sqrt(Math.pow(thumbTip.x - indexTip.x, 2) + Math.pow(thumbTip.y - indexTip.y, 2));
+          setIsPinching(pinchDist < 0.05);
+
+          const targetX = 1 - (thumbTip.x + indexTip.x) / 2;
+          const targetY = (thumbTip.y + indexTip.y) / 2;
+
+          const smoothing = 0.2;
+          const newX = lastPos.current.x + (targetX - lastPos.current.x) * smoothing;
+          const newY = lastPos.current.y + (targetY - lastPos.current.y) * smoothing;
+          lastPos.current = { x: newX, y: newY };
+          setHandPos({ x: newX, y: newY });
+          // Custom Gesture Detection (ILOVEYOU & ILOVEYOUDELVAGRISHELA)
+          let customMatched = false;
+          let matchedName = '';
+
+          if (results.landmarks.length > 0) {
+            results.landmarks.forEach((hand) => {
+              // Check all custom gestures
+              for (const template of customGestures) {
+                const { matched } = detectCustomGesture(hand, template.landmarks[0] as Landmark[], 0.18);
+                const wrist = hand[0];
+                const isInZone = wrist.x > 0.25 && wrist.x < 0.75 && wrist.y > 0.25 && wrist.y < 0.75;
+
+                if (matched && isInZone) {
+                  customMatched = true;
+                  matchedName = template.name;
+                  break;
+                } else if (matched && !isInZone) {
+                  if (canvasRef.current) {
+                    const ctx = canvasRef.current.getContext('2d');
+                    if (ctx) {
+                      ctx.fillStyle = '#ffcc00';
+                      ctx.font = 'bold 24px Outfit, sans-serif';
+                      ctx.fillText('MOVE HAND TO CENTER', 180, 40);
+                    }
+                  }
+                }
+              }
+            });
+          }
+
+          if (customMatched) {
+            const { setFormationText, formationText } = useExperienceStore.getState();
+            let targetText = 'I LOVE YOU';
+
+            // If it matches any personalized message variation
+            if (matchedName.startsWith('ILOVEYOUDELVAGRISHELA')) {
+              targetText = 'I LOVE YOU\nDELVA GRISHELA';
+            }
+
+            if (formationText !== targetText) {
+              setFormationText(targetText);
+            }
+          }
+
+          // Two-Handed Heart Detection
+          let heartMatched = false;
+          if (results.landmarks.length === 2) {
+            const hand1 = results.landmarks[0];
+            const hand2 = results.landmarks[1];
+
+            const thumbDist = Math.sqrt(Math.pow(hand1[4].x - hand2[4].x, 2) + Math.pow(hand1[4].y - hand2[4].y, 2));
+            const indexDist = Math.sqrt(Math.pow(hand1[8].x - hand2[8].x, 2) + Math.pow(hand1[8].y - hand2[8].y, 2));
+            const wristDist = Math.sqrt(Math.pow(hand1[0].x - hand2[0].x, 2) + Math.pow(hand1[0].y - hand2[0].y, 2));
+
+            const avgIndexY = (hand1[8].y + hand2[8].y) / 2;
+            const avgThumbY = (hand1[4].y + hand2[4].y) / 2;
+            const isVerticallyCorrect = avgIndexY < avgThumbY - 0.12;
+            const isSymmetrical = Math.abs(hand1[0].y - hand2[0].y) < 0.15;
+            const isHorizontallyAligned = Math.abs(hand1[0].x - hand2[0].x) < 0.3;
+            const verticalSpan = Math.abs(avgIndexY - avgThumbY);
+            const isNotFlat = verticalSpan > 0.08;
+
+            const currentCalibration = calibrationDataRef.current;
+            if (currentCalibration) {
+              heartMatched =
+                Math.abs(thumbDist - currentCalibration.thumbDist) < 0.04 &&
+                Math.abs(indexDist - currentCalibration.indexDist) < 0.04 &&
+                Math.abs(wristDist - currentCalibration.wristDist) < 0.1 &&
+                Math.abs(verticalSpan - currentCalibration.verticalSpan) < 0.06 &&
+                isVerticallyCorrect &&
+                isSymmetrical &&
+                isHorizontallyAligned;
+            } else {
+              heartMatched = thumbDist < 0.04 && indexDist < 0.04 && wristDist < 0.25 && isVerticallyCorrect && isSymmetrical && isHorizontallyAligned && isNotFlat;
+            }
+
+            if (isCalibratingRef.current) {
+              if (canvasRef.current) {
+                const ctx = canvasRef.current.getContext('2d');
+                if (ctx) {
+                  ctx.fillStyle = '#00f2ff';
+                  ctx.font = 'bold 24px Outfit, sans-serif';
+                  ctx.fillText('ALIGNING FOR CALIBRATION...', 160, 40);
+                  metricsRef.current = { thumbDist, indexDist, wristDist, verticalSpan };
+                }
+              }
+              heartMatched = false;
+            }
+          }
+
+          const isAnyLoveActive = customMatched || heartMatched;
+          setIsHeartActive(isAnyLoveActive);
+
+          if (isAnyLoveActive) {
+            if (!heartGestureStartTime.current) {
+              heartGestureStartTime.current = performance.now();
+            }
+            const elapsed = performance.now() - heartGestureStartTime.current;
+
+            if (canvasRef.current) {
+              const ctx = canvasRef.current.getContext('2d');
+              if (ctx) {
+                const percent = Math.min(100, Math.round((elapsed / 1000) * 100));
+                ctx.fillStyle = customMatched ? '#00f2ff' : '#ff2d55';
+                ctx.font = 'bold 32px Outfit, sans-serif';
+                ctx.fillText(customMatched ? 'I LOVE YOU SIGN!' : 'LOVE FORMING...', 180, 80);
+                ctx.fillRect(180, 100, 200 * (percent / 100), 10);
+              }
+            }
+
+            if (elapsed > 100 && !useExperienceStore.getState().loveFormed) {
+              // Quicker reaction
+              setLoveFormed(true);
+            }
+          } else {
+            heartGestureStartTime.current = null;
+            if (useExperienceStore.getState().loveFormed) {
+              setLoveFormed(false);
+            }
+          }
+
+          // Fallback reveal timer
+          if (!trackingStartTime.current) trackingStartTime.current = performance.now();
+        } else {
+          setTracking(false);
+          setIsPinching(false);
+          setIsHeartActive(false);
+          heartGestureStartTime.current = null;
+          if (canvasRef.current) {
+            const ctx = canvasRef.current.getContext('2d');
+            ctx?.clearRect(0, 0, 640, 480);
+          }
+        }
+      }
+      animationFrameId = requestAnimationFrame(detect);
+    };
+
+    setupTracking().then(() => {
+      detect();
+    });
+
+    const videoElement = videoRef.current;
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      if (videoElement?.srcObject) {
+        (videoElement.srcObject as MediaStream).getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [experienceStarted, setHandPos, setTracking, setIsPinching, setLoveFormed, setIsHeartActive]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'c') {
+        isCalibratingRef.current = !isCalibratingRef.current;
+        console.log('Calibration mode:', isCalibratingRef.current ? 'ON' : 'OFF');
+        if (!isCalibratingRef.current && metricsRef.current) {
+          setCalibrationData(metricsRef.current);
+          console.log('Saved calibration:', metricsRef.current);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [setCalibrationData]);
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        bottom: '20px',
+        right: '20px',
+        width: '160px',
+        height: '120px',
+        zIndex: 50,
+        opacity: experienceStarted ? 1 : 0,
+        pointerEvents: 'none',
+      }}>
+      <video
+        ref={videoRef}
+        style={{
+          width: '100%',
+          height: '100%',
+          borderRadius: '12px',
+          objectFit: 'cover',
+          transform: 'scaleX(-1)', // Mirror
+          border: '2px solid rgba(255, 255, 255, 0.2)',
+        }}
+        muted
+        playsInline
+      />
+      <canvas
+        ref={canvasRef}
+        width={640}
+        height={480}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          transform: 'scaleX(-1)',
+          pointerEvents: 'none',
+        }}
+      />
+      <div
+        className="absolute top-2 left-2 px-2 py-0.5 rounded text-[10px] font-bold tracking-tighter uppercase transition-all duration-200"
+        style={{
+          backgroundColor: isPinching ? 'rgba(236, 72, 153, 0.9)' : isTracking ? 'rgba(34, 197, 94, 0.8)' : 'rgba(239, 68, 68, 0.8)',
+          color: 'white',
+          transform: isPinching ? 'scale(1.1)' : 'scale(1)',
+          textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+        }}>
+        {isHeartActive ? 'Creating Love...' : isPinching ? 'Grasping' : isTracking ? 'Tracking' : 'Searching...'}
+      </div>
+    </div>
+  );
+};
