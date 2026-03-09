@@ -145,8 +145,11 @@ export const HandTracker = React.memo(() => {
           const newY = lastPos.current.y + (targetY - lastPos.current.y) * smoothing;
           lastPos.current = { x: newX, y: newY };
 
-          // Batch high-frequency data using setState to bypass reactive setters while keeping Zustand compliant
-          useExperienceStore.setState({ handLandmarks: primaryHand, handPos: { x: newX, y: newY } });
+          // Safely mutate high-frequency data bypassing React renders:
+          useExperienceStore.setState({
+            handLandmarks: primaryHand,
+            handPos: { x: newX, y: newY },
+          });
 
           // Custom Gesture Detection (ILOVEYOU & ILOVEYOUDELVAGRISHELA)
           let customMatched = false;
@@ -157,22 +160,10 @@ export const HandTracker = React.memo(() => {
               // Check all custom gestures
               for (const template of customGestures) {
                 const { matched } = detectCustomGesture(hand, template.landmarks[0] as Landmark[], 0.18);
-                const wrist = hand[0];
-                const isInZone = wrist.x > 0.25 && wrist.x < 0.75 && wrist.y > 0.25 && wrist.y < 0.75;
-
-                if (matched && isInZone) {
+                if (matched) {
                   customMatched = true;
                   matchedName = template.name;
                   break;
-                } else if (matched && !isInZone) {
-                  if (canvasRef.current) {
-                    const ctx = canvasRef.current.getContext('2d');
-                    if (ctx) {
-                      ctx.fillStyle = '#ffcc00';
-                      ctx.font = 'bold 24px Outfit, sans-serif';
-                      ctx.fillText('MOVE HAND TO CENTER', 180, 40);
-                    }
-                  }
                 }
               }
             });
@@ -202,9 +193,12 @@ export const HandTracker = React.memo(() => {
               const ctx = canvasRef.current.getContext('2d');
               if (ctx) {
                 const percent = Math.min(100, Math.round((elapsed / 2000) * 100));
+                ctx.save();
+                ctx.scale(-1, 1);
                 ctx.fillStyle = '#ff2d55';
                 ctx.font = 'bold 32px Outfit, sans-serif';
-                ctx.fillText(`MEMBUKA PORTAL GALERI... ${percent}%`, 100, 140);
+                ctx.fillText(`MEMBUKA PORTAL GALERI... ${percent}%`, -540, 140);
+                ctx.restore();
 
                 // Progress bar
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
@@ -295,9 +289,12 @@ export const HandTracker = React.memo(() => {
               const ctx = canvasRef.current.getContext('2d');
               if (ctx) {
                 const percent = Math.min(100, Math.round((elapsed / 1000) * 100));
+                ctx.save();
+                ctx.scale(-1, 1);
                 ctx.fillStyle = customMatched ? '#00f2ff' : '#ff2d55';
                 ctx.font = 'bold 32px Outfit, sans-serif';
-                ctx.fillText(customMatched ? 'SIMBOL CINTA TERDETEKSI!' : 'MEMBENTUK CINTA...', 140, 80);
+                ctx.fillText(customMatched ? 'SIMBOL CINTA TERDETEKSI!' : 'MEMBENTUK CINTA...', -500, 80);
+                ctx.restore();
                 ctx.fillRect(180, 100, 200 * (percent / 100), 10);
               }
             }
@@ -375,14 +372,15 @@ export const HandTracker = React.memo(() => {
         }
       }
 
-      if (e.key === 'Shift' && !e.repeat) {
-        useExperienceStore.getState().setIsShiftPressed(true);
+      if (e.key === 'Shift') {
+        if (e.repeat) return;
+        useExperienceStore.setState({ isShiftPressed: true });
       }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.key === 'Shift') {
-        useExperienceStore.getState().setIsShiftPressed(false);
+        useExperienceStore.setState({ isShiftPressed: false });
       }
     };
 
@@ -394,7 +392,7 @@ export const HandTracker = React.memo(() => {
       window.removeEventListener('keyup', handleKeyUp);
 
       // Safety clean up
-      useExperienceStore.getState().setIsShiftPressed(false);
+      useExperienceStore.setState({ isShiftPressed: false });
     };
   }, []);
 

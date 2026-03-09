@@ -48,7 +48,7 @@ export const Heart = ({ position, scale = 0.8, color = '#ff2d55' }: HeartProps) 
     const targetY = -(handPos.y - 0.5) * 0.5;
 
     mesh.current.rotation.y = THREE.MathUtils.lerp(mesh.current.rotation.y, targetX, 0.05);
-    mesh.current.rotation.x = THREE.MathUtils.lerp(mesh.current.rotation.x, Math.PI + targetY, 0.05);
+    mesh.current.rotation.x = THREE.MathUtils.lerp(mesh.current.rotation.x, targetY, 0.05);
   });
 
   return (
@@ -177,7 +177,7 @@ export const HeartFormation = () => {
             const alpha = data[(y * 1200 + x) * 4 + 3];
             if (alpha > 120) {
               points.push({
-                x: (x - 600) / 70, // Slightly more compressed to fit the screen
+                x: (x - 600) / 70, // Back to standard left-to-right
                 y: (225 - y) / 70 + 0.5,
               });
             }

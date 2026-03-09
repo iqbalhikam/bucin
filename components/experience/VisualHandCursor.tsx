@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
+import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useExperienceStore } from '@/lib/experience/store';
@@ -8,29 +8,11 @@ import { useExperienceStore } from '@/lib/experience/store';
 export const VisualHandCursor = () => {
   const meshRef = useRef<THREE.Mesh>(null);
   const lightRef = useRef<THREE.PointLight>(null);
+  const pinchColor = useRef(new THREE.Color('#00f2ff'));
+  const defaultColor = useRef(new THREE.Color('#ffffff'));
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Shift' && !e.repeat) {
-        useExperienceStore.getState().setIsShiftPressed(true);
-      }
-    };
-
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'Shift') {
-        useExperienceStore.getState().setIsShiftPressed(false);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-      useExperienceStore.getState().setIsShiftPressed(false); // Clean up state
-    };
-  }, []);
+  // Removed local keyboard listeners to prevent redundant state updates.
+  // The state is now managed solely by HandTracker via useExperienceStore.setState.
 
   useFrame(() => {
     if (!meshRef.current || !lightRef.current) return;
@@ -54,7 +36,7 @@ export const VisualHandCursor = () => {
     meshRef.current.scale.setScalar(THREE.MathUtils.lerp(meshRef.current.scale.x, targetScale, 0.2));
 
     const material = meshRef.current.material as THREE.MeshStandardMaterial;
-    const targetColor = isShiftPressed ? new THREE.Color('#00f2ff') : new THREE.Color('#ffffff');
+    const targetColor = isShiftPressed ? pinchColor.current : defaultColor.current;
     const targetEmissiveIntensity = isShiftPressed ? 4 : 1;
 
     material.color.lerp(targetColor, 0.1);

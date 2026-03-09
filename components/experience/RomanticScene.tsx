@@ -7,7 +7,7 @@ import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as THREE from 'three';
 import { useExperienceStore } from '@/lib/experience/store';
-import { Heart, Initials, GlowParticles, HeartFormation } from './Elements';
+import { Heart, GlowParticles, HeartFormation } from './Elements';
 
 const HEART_DATA = [
   { id: 1, position: [5, 2, -5], scale: 0.7, color: '#ff2d55' },
@@ -118,7 +118,6 @@ export const RomanticScene = () => {
               {HEART_DATA.map((heart) => (
                 <Heart key={heart.id} position={heart.position as [number, number, number]} scale={heart.scale} color={heart.color} />
               ))}
-              <Initials name1="T" name2="D" />
             </>
           )}
 

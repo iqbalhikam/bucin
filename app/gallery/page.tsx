@@ -6,7 +6,8 @@ import { GalleryScene } from '@/components/experience/GalleryScene';
 import Link from 'next/link';
 
 export default function GalleryPage() {
-  const { experienceStarted, startExperience } = useExperienceStore();
+  const experienceStarted = useExperienceStore((state) => state.experienceStarted);
+  const startExperience = useExperienceStore((state) => state.startExperience);
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-black text-white">

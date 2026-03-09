@@ -14,12 +14,14 @@ interface FloatingPhotoProps {
   initialPosition: [number, number, number];
   index: number;
 }
-const tempEuler = new THREE.Euler();
-const tempQuat = new THREE.Quaternion();
+// Put these INSIDE the component using useRef to prevent shared state issues
+// and ensure these objects are NOT recreated on every frame.
 
 export const FloatingPhoto = ({ id, url, initialPosition, index }: FloatingPhotoProps) => {
   const rbRef = useRef<RapierRigidBody>(null);
   const materialRef = useRef<THREE.MeshPhysicalMaterial>(null);
+  const tempQuat = useRef(new THREE.Quaternion());
+  const tempEuler = useRef(new THREE.Euler());
 
   // Use local refs for state that updates 60fps instead of React useState/Zustand destructuring
   const isGrabbed = useRef(false);
@@ -111,22 +113,22 @@ export const FloatingPhoto = ({ id, url, initialPosition, index }: FloatingPhoto
     currentPos.current.lerp(targetPosition, isGrabbed.current ? 0.3 : 0.05);
     rbRef.current.setNextKinematicTranslation(currentPos.current);
 
-    // Apply gentle rotation unless grabbed
+    // Apply gentle rotation unless grabbed (NO `new` KEYWORDS HERE!)
     const currentRot = rbRef.current.rotation();
-    tempQuat.set(currentRot.x, currentRot.y, currentRot.z, currentRot.w);
-    tempEuler.setFromQuaternion(tempQuat);
+    tempQuat.current.set(currentRot.x, currentRot.y, currentRot.z, currentRot.w);
+    tempEuler.current.setFromQuaternion(tempQuat.current);
 
     if (!isGrabbed.current) {
-      tempEuler.y = THREE.MathUtils.lerp(tempEuler.y, Math.sin(t * 0.5 + index) * 0.1, delta);
-      tempEuler.x = THREE.MathUtils.lerp(tempEuler.x, Math.cos(t * 0.3 + index) * 0.05, delta);
+      tempEuler.current.y = THREE.MathUtils.lerp(tempEuler.current.y, Math.sin(t * 0.5 + index) * 0.1, delta);
+      tempEuler.current.x = THREE.MathUtils.lerp(tempEuler.current.x, Math.cos(t * 0.3 + index) * 0.05, delta);
     } else {
       // Look slightly towards center when grabbed
-      tempEuler.y = THREE.MathUtils.lerp(tempEuler.y, 0, delta * 5);
-      tempEuler.x = THREE.MathUtils.lerp(tempEuler.x, 0, delta * 5);
-      tempEuler.z = Math.sin(t * 5) * 0.02; // tiny wiggle
+      tempEuler.current.y = THREE.MathUtils.lerp(tempEuler.current.y, 0, delta * 5);
+      tempEuler.current.x = THREE.MathUtils.lerp(tempEuler.current.x, 0, delta * 5);
+      tempEuler.current.z = Math.sin(t * 5) * 0.02; // tiny wiggle
     }
-    tempQuat.setFromEuler(tempEuler);
-    rbRef.current.setNextKinematicRotation(tempQuat);
+    tempQuat.current.setFromEuler(tempEuler.current);
+    rbRef.current.setNextKinematicRotation(tempQuat.current);
 
     // Smoothly animate emissive glow without React re-render
     if (materialRef.current) {

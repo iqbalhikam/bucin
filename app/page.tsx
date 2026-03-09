@@ -7,7 +7,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 
 export default function ExperiencePage() {
-  const { experienceStarted, startExperience, loveFormed, formationComplete } = useExperienceStore();
+  const experienceStarted = useExperienceStore((state) => state.experienceStarted);
+  const startExperience = useExperienceStore((state) => state.startExperience);
+  const loveFormed = useExperienceStore((state) => state.loveFormed);
+  const formationComplete = useExperienceStore((state) => state.formationComplete);
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-linear-to-br from-gray-950 via-black to-black">
