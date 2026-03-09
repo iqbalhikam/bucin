@@ -40,11 +40,9 @@ export const Heart = ({ position, scale = 0.8, color = '#ff2d55' }: HeartProps) 
     [],
   );
 
-  const rbRef = useRef<RapierRigidBody>(null);
-
   useFrame(() => {
     const { handPos } = useExperienceStore.getState();
-    if (!mesh.current || !rbRef.current) return;
+    if (!mesh.current) return;
 
     const targetX = (handPos.x - 0.5) * 0.5;
     const targetY = -(handPos.y - 0.5) * 0.5;
@@ -53,18 +51,15 @@ export const Heart = ({ position, scale = 0.8, color = '#ff2d55' }: HeartProps) 
     mesh.current.rotation.x = THREE.MathUtils.lerp(mesh.current.rotation.x, Math.PI + targetY, 0.05);
   });
 
-  const HEART_USER_DATA = { type: 'heart' };
-
   return (
-    <RigidBody ref={rbRef} position={position} colliders={false} linearDamping={0.5} angularDamping={0.5} userData={HEART_USER_DATA}>
-      <BallCollider args={[scale]} />
+    <group position={position}>
       <Float speed={2} rotationIntensity={1} floatIntensity={1}>
         <mesh ref={mesh} scale={scale}>
           <extrudeGeometry args={[HEART_SHAPE, extrudeSettings]} />
           <meshPhysicalMaterial color={color} thickness={2} roughness={0.05} transmission={0.95} ior={1.5} attenuationColor={color} attenuationDistance={1} emissive={color} emissiveIntensity={0.4} clearcoat={1} clearcoatRoughness={0.1} />
         </mesh>
       </Float>
-    </RigidBody>
+    </group>
   );
 };
 
@@ -194,7 +189,7 @@ export const HeartFormation = () => {
     sample();
   }, [formationText]);
 
-  const MAX_COUNT = 5000;
+  const MAX_COUNT = 20000;
 
   // Pre-calculate random positions and rotations for all possible particles
   const particleMeta = useMemo(() => {

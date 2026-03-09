@@ -5,6 +5,7 @@ import { HandLandmarker, FilesetResolver, Landmark } from '@mediapipe/tasks-visi
 import { useExperienceStore } from '@/lib/experience/store';
 import { detectCustomGesture } from '@/lib/gestures/utils';
 import customGestures from '@/src/data/customGestures.json';
+import { useRouter } from 'next/navigation';
 
 export const HandTracker = React.memo(() => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -19,6 +20,9 @@ export const HandTracker = React.memo(() => {
   const heartGestureStartTime = useRef<number | null>(null);
   const calibrationDataRef = useRef(calibrationData);
   const trackingStartTime = useRef<number | null>(null);
+  const router = useRouter();
+  const galleryGestureStartTime = useRef<number | null>(null);
+  const isRouting = useRef(false);
 
   useEffect(() => {
     calibrationDataRef.current = calibrationData;
@@ -186,6 +190,36 @@ export const HandTracker = React.memo(() => {
             if (formationText !== targetText) {
               setFormationText(targetText);
             }
+          }
+
+          if (matchedName === 'OPEN_GALLERY' && !isRouting.current) {
+            if (!galleryGestureStartTime.current) {
+              galleryGestureStartTime.current = performance.now();
+            }
+            const elapsed = performance.now() - galleryGestureStartTime.current;
+
+            if (canvasRef.current) {
+              const ctx = canvasRef.current.getContext('2d');
+              if (ctx) {
+                const percent = Math.min(100, Math.round((elapsed / 2000) * 100));
+                ctx.fillStyle = '#ff2d55';
+                ctx.font = 'bold 32px Outfit, sans-serif';
+                ctx.fillText(`MEMBUKA PORTAL GALERI... ${percent}%`, 100, 140);
+
+                // Progress bar
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.fillRect(100, 160, 400, 15);
+                ctx.fillStyle = '#ff2d55';
+                ctx.fillRect(100, 160, 400 * (percent / 100), 15);
+              }
+            }
+
+            if (elapsed > 2000 && !isRouting.current) {
+              isRouting.current = true;
+              router.push('/gallery');
+            }
+          } else if (matchedName !== 'OPEN_GALLERY') {
+            galleryGestureStartTime.current = null;
           }
 
           // Two-Handed Heart Detection

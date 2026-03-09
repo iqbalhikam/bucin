@@ -5,12 +5,9 @@ import { Suspense, useEffect } from 'react';
 import { Environment } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Physics } from '@react-three/rapier';
 import * as THREE from 'three';
 import { useExperienceStore } from '@/lib/experience/store';
 import { Heart, Initials, GlowParticles, HeartFormation } from './Elements';
-import { FloatingPhoto } from './FloatingPhoto';
-import { HandSkeleton } from './HandSkeleton';
 
 const HEART_DATA = [
   { id: 1, position: [5, 2, -5], scale: 0.7, color: '#ff2d55' },
@@ -61,7 +58,6 @@ export const RomanticScene = () => {
   const loveFormed = useExperienceStore((state) => state.loveFormed);
   const formationComplete = useExperienceStore((state) => state.formationComplete);
   const isTracking = useExperienceStore((state) => state.isTracking);
-  const photoData = useExperienceStore((state) => state.photoData);
   // Actions
   const setHandPos = useExperienceStore((state) => state.setHandPos);
   const setTracking = useExperienceStore((state) => state.setTracking);
@@ -115,26 +111,16 @@ export const RomanticScene = () => {
           <pointLight position={[-10, -10, 10]} intensity={57} color="#8a2be2" />
           <pointLight position={[0, 15, -5]} intensity={95} color="#ffd700" />
 
-          {/* Physics wrapper must always be active if we want photos to be interactive anytime */}
-          <Physics gravity={[0, 0, 0]}>
-            {/* Always display floating photos */}
-            {photoData.map((photo, index) => (
-              <FloatingPhoto key={photo.id} id={photo.id} url={photo.path} initialPosition={photo.initialPosition} index={index} />
-            ))}
-            {/* 3D Hand Skeleton with Physics for spatial computing interaction */}
-            <HandSkeleton />
-
-            {/* Only show these text/love interactions when love is fully formed */}
-            {loveFormed && formationComplete && (
-              <>
-                <GlowParticles />
-                {HEART_DATA.map((heart) => (
-                  <Heart key={heart.id} position={heart.position as [number, number, number]} scale={heart.scale} color={heart.color} />
-                ))}
-                <Initials name1="T" name2="D" />
-              </>
-            )}
-          </Physics>
+          {/* Only show these text/love interactions when love is fully formed */}
+          {loveFormed && formationComplete && (
+            <>
+              <GlowParticles />
+              {HEART_DATA.map((heart) => (
+                <Heart key={heart.id} position={heart.position as [number, number, number]} scale={heart.scale} color={heart.color} />
+              ))}
+              <Initials name1="T" name2="D" />
+            </>
+          )}
 
           <Environment preset="night" />
         </Suspense>
