@@ -1,10 +1,10 @@
 import React from 'react';
 import { useExperienceStore } from '@/lib/experience/store';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings, X } from 'lucide-react';
+import { Settings, X, BookOpen } from 'lucide-react';
 
 export const SettingsOverlay = () => {
-  const { showSettings, setShowSettings, heartIntensity, setHeartIntensity, heartColor, setHeartColor } = useExperienceStore();
+  const { showSettings, setShowSettings, showGestureGuide, setShowGestureGuide, heartIntensity, setHeartIntensity, heartColor, setHeartColor } = useExperienceStore();
 
   const colors = [
     '#ff1a4a', // Neon Red
@@ -17,12 +17,27 @@ export const SettingsOverlay = () => {
 
   return (
     <div className="fixed top-6 right-6 z-50 flex flex-col items-end gap-3 pointer-events-none">
-      {/* Toggle Button */}
-      <button
-        onClick={() => setShowSettings(!showSettings)}
-        className="pointer-events-auto p-3 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 shadow-2xl text-white/70 hover:text-white hover:scale-110 transition-all active:scale-95">
-        {showSettings ? <X size={20} /> : <Settings size={20} />}
-      </button>
+      <div className="flex gap-3 pointer-events-auto">
+        {/* Guide Toggle Button */}
+        <button
+          onClick={() => {
+            setShowGestureGuide(!showGestureGuide);
+            if (showSettings) setShowSettings(false);
+          }}
+          className={`p-3 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 shadow-2xl transition-all active:scale-95 ${showGestureGuide ? 'text-blue-400 border-blue-400/30' : 'text-white/70 hover:text-white hover:scale-110'}`}>
+          <BookOpen size={20} />
+        </button>
+
+        {/* Settings Toggle Button */}
+        <button
+          onClick={() => {
+            setShowSettings(!showSettings);
+            if (showGestureGuide) setShowGestureGuide(false);
+          }}
+          className={`p-3 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 shadow-2xl transition-all active:scale-95 ${showSettings ? 'text-pink-500 border-pink-500/30' : 'text-white/70 hover:text-white hover:scale-110'}`}>
+          {showSettings ? <X size={20} /> : <Settings size={20} />}
+        </button>
+      </div>
 
       {/* Settings Panel */}
       <AnimatePresence>
@@ -34,12 +49,12 @@ export const SettingsOverlay = () => {
             className="pointer-events-auto w-72 p-6 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 shadow-2xl">
             <div className="space-y-6">
               <div>
-                <h3 className="text-white/40 text-[10px] uppercase tracking-[0.2em] font-medium mb-4">Appearance</h3>
+                <h3 className="text-white/40 text-[10px] uppercase tracking-[0.2em] font-medium mb-4">Tampilan</h3>
                 <div className="space-y-4">
                   {/* Intensity Slider */}
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
-                      <label className="text-white/80 text-xs font-light">Intensity</label>
+                      <label className="text-white/80 text-xs font-light">Intensitas</label>
                       <span className="text-white/40 text-[10px] font-mono">{heartIntensity}</span>
                     </div>
                     <input
@@ -56,7 +71,7 @@ export const SettingsOverlay = () => {
               </div>
 
               <div>
-                <h3 className="text-white/40 text-[10px] uppercase tracking-[0.2em] font-medium mb-3">Color Palette</h3>
+                <h3 className="text-white/40 text-[10px] uppercase tracking-[0.2em] font-medium mb-3">Palet Warna</h3>
                 <div className="flex flex-wrap gap-2">
                   {colors.map((c) => (
                     <button
@@ -73,7 +88,7 @@ export const SettingsOverlay = () => {
               </div>
 
               <div className="pt-2 border-t border-white/5">
-                <p className="text-white/20 text-[9px] leading-relaxed italic">Adjust the magic to your preference. Changes take effect instantly.</p>
+                <p className="text-white/20 text-[9px] leading-relaxed italic">Atur keajaiban sesuai keinginanmu. Perubahan langsung diterapkan.</p>
               </div>
             </div>
           </motion.div>

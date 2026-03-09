@@ -17,7 +17,10 @@ interface ExperienceState {
   heartColor: string;
   heartCount: number;
   showSettings: boolean;
+  showGestureGuide: boolean;
   formationText: string;
+  spawnedShapes: { id: string; type: 'heart' | 'box' | 'sphere' | 'torus'; position: [number, number, number] }[];
+  isGrabbing: boolean;
   setHandPos: (pos: { x: number; y: number }) => void;
   setTracking: (tracking: boolean) => void;
   setIsPinching: (isPinching: boolean) => void;
@@ -28,7 +31,10 @@ interface ExperienceState {
   setHeartColor: (color: string) => void;
   setHeartCount: (count: number) => void;
   setShowSettings: (show: boolean) => void;
+  setShowGestureGuide: (show: boolean) => void;
   setFormationText: (text: string) => void;
+  addSpawnedShape: (type: 'heart' | 'box' | 'sphere' | 'torus', position: [number, number, number]) => void;
+  setIsGrabbing: (grabbing: boolean) => void;
   startExperience: () => void;
 }
 
@@ -44,7 +50,10 @@ export const useExperienceStore = create<ExperienceState>((set) => ({
   heartColor: '#ff1a4a',
   heartCount: 20000,
   showSettings: false,
+  showGestureGuide: false,
   formationText: 'I LOVE YOU',
+  spawnedShapes: [],
+  isGrabbing: false,
   setHandPos: (pos) => set({ handPos: pos }),
   setTracking: (tracking) => set({ isTracking: tracking }),
   setIsPinching: (isPinching) => set({ isPinching: isPinching }),
@@ -55,6 +64,12 @@ export const useExperienceStore = create<ExperienceState>((set) => ({
   setHeartColor: (color) => set({ heartColor: color }),
   setHeartCount: (count) => set({ heartCount: count }),
   setShowSettings: (show) => set({ showSettings: show }),
+  setShowGestureGuide: (show) => set({ showGestureGuide: show }),
   setFormationText: (text) => set({ formationText: text }),
+  addSpawnedShape: (type, position) =>
+    set((state) => ({
+      spawnedShapes: [...state.spawnedShapes, { id: Math.random().toString(36).substring(7), type, position }],
+    })),
+  setIsGrabbing: (grabbing) => set({ isGrabbing: grabbing }),
   startExperience: () => set({ experienceStarted: true }),
 }));

@@ -193,7 +193,7 @@ export const HandTracker = () => {
 
             const avgIndexY = (hand1[8].y + hand2[8].y) / 2;
             const avgThumbY = (hand1[4].y + hand2[4].y) / 2;
-            const isVerticallyCorrect = avgIndexY < avgThumbY - 0.12;
+            const isVerticallyCorrect = avgIndexY < avgThumbY - 0.08;
             const isSymmetrical = Math.abs(hand1[0].y - hand2[0].y) < 0.15;
             const isHorizontallyAligned = Math.abs(hand1[0].x - hand2[0].x) < 0.3;
             const verticalSpan = Math.abs(avgIndexY - avgThumbY);
@@ -202,24 +202,39 @@ export const HandTracker = () => {
             const currentCalibration = calibrationDataRef.current;
             if (currentCalibration) {
               heartMatched =
-                Math.abs(thumbDist - currentCalibration.thumbDist) < 0.04 &&
-                Math.abs(indexDist - currentCalibration.indexDist) < 0.04 &&
-                Math.abs(wristDist - currentCalibration.wristDist) < 0.1 &&
-                Math.abs(verticalSpan - currentCalibration.verticalSpan) < 0.06 &&
+                Math.abs(thumbDist - currentCalibration.thumbDist) < 0.08 &&
+                Math.abs(indexDist - currentCalibration.indexDist) < 0.08 &&
+                Math.abs(wristDist - currentCalibration.wristDist) < 0.15 &&
+                Math.abs(verticalSpan - currentCalibration.verticalSpan) < 0.1 &&
                 isVerticallyCorrect &&
                 isSymmetrical &&
                 isHorizontallyAligned;
             } else {
-              heartMatched = thumbDist < 0.04 && indexDist < 0.04 && wristDist < 0.25 && isVerticallyCorrect && isSymmetrical && isHorizontallyAligned && isNotFlat;
+              // Be more lenient for uncalibrated users
+              heartMatched = thumbDist < 0.1 && indexDist < 0.1 && wristDist < 0.35 && isVerticallyCorrect && isSymmetrical && isHorizontallyAligned && isNotFlat;
             }
 
+            if (!heartMatched && !isCalibratingRef.current) {
+              if (canvasRef.current) {
+                const ctx = canvasRef.current.getContext('2d');
+                if (ctx) {
+                  ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                  ctx.font = 'bold 20px Outfit, sans-serif';
+                  if (thumbDist > 0.1 || indexDist > 0.1) {
+                    ctx.fillText('SAMBUNGKAN UJUNG JARI', 180, 440);
+                  } else if (!isVerticallyCorrect) {
+                    ctx.fillText('MIRINGKAN TANGAN (BENTUK HATI)', 120, 440);
+                  }
+                }
+              }
+            }
             if (isCalibratingRef.current) {
               if (canvasRef.current) {
                 const ctx = canvasRef.current.getContext('2d');
                 if (ctx) {
                   ctx.fillStyle = '#00f2ff';
                   ctx.font = 'bold 24px Outfit, sans-serif';
-                  ctx.fillText('ALIGNING FOR CALIBRATION...', 160, 40);
+                  ctx.fillText('MENYALURKAN KALIBRASI...', 160, 40);
                   metricsRef.current = { thumbDist, indexDist, wristDist, verticalSpan };
                 }
               }
@@ -242,7 +257,7 @@ export const HandTracker = () => {
                 const percent = Math.min(100, Math.round((elapsed / 1000) * 100));
                 ctx.fillStyle = customMatched ? '#00f2ff' : '#ff2d55';
                 ctx.font = 'bold 32px Outfit, sans-serif';
-                ctx.fillText(customMatched ? 'I LOVE YOU SIGN!' : 'LOVE FORMING...', 180, 80);
+                ctx.fillText(customMatched ? 'SIMBOL CINTA TERDETEKSI!' : 'MEMBENTUK CINTA...', 140, 80);
                 ctx.fillRect(180, 100, 200 * (percent / 100), 10);
               }
             }
@@ -308,8 +323,8 @@ export const HandTracker = () => {
         position: 'fixed',
         bottom: '20px',
         right: '20px',
-        width: '160px',
-        height: '120px',
+        width: '240px',
+        height: '180px',
         zIndex: 50,
         opacity: experienceStarted ? 1 : 0,
         pointerEvents: 'none',
@@ -349,7 +364,7 @@ export const HandTracker = () => {
           transform: isPinching ? 'scale(1.1)' : 'scale(1)',
           textShadow: '0 1px 2px rgba(0,0,0,0.5)',
         }}>
-        {isHeartActive ? 'Creating Love...' : isPinching ? 'Grasping' : isTracking ? 'Tracking' : 'Searching...'}
+        {isHeartActive ? 'Membentuk Cinta...' : isPinching ? 'Genggam' : isTracking ? 'Terdeteksi' : 'Mencari...'}
       </div>
     </div>
   );

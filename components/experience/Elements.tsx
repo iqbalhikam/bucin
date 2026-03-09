@@ -72,6 +72,62 @@ const seededRandom = (seed: number) => {
   return x - Math.floor(x);
 };
 
+export const DynamicShape = ({ type, position, color = '#ff2d55', scale = 1 }: { type: 'heart' | 'box' | 'sphere' | 'torus'; position: [number, number, number]; color?: string; scale?: number }) => {
+  const rbRef = useRef<RapierRigidBody>(null);
+  const isCustomCollider = type === 'heart' || type === 'torus';
+  const autoCollider = isCustomCollider ? false : type === 'box' ? 'cuboid' : 'ball';
+
+  const extrudeSettings = useMemo(
+    () => ({
+      depth: 0.4,
+      bevelEnabled: true,
+      bevelSegments: 3,
+      steps: 2,
+      bevelSize: 0.15,
+      bevelThickness: 0.15,
+    }),
+    [],
+  );
+
+  const renderGeometry = () => {
+    switch (type) {
+      case 'heart':
+        return <extrudeGeometry args={[HEART_SHAPE, extrudeSettings]} />;
+      case 'box':
+        return <boxGeometry args={[1, 1, 1]} />;
+      case 'sphere':
+        return <sphereGeometry args={[0.6, 32, 32]} />;
+      case 'torus':
+        return <torusGeometry args={[0.5, 0.2, 16, 32]} />;
+      default:
+        return <boxGeometry args={[1, 1, 1]} />;
+    }
+  };
+
+  return (
+    <RigidBody
+      ref={rbRef}
+      position={position}
+      type="dynamic"
+      colliders={autoCollider}
+      linearDamping={0.5}
+      angularDamping={0.5}
+      restitution={0.5}
+      friction={0.5}
+      gravityScale={1.5}
+      mass={1}
+      canSleep={false}
+      ccd={true}
+      userData={{ type: 'dynamicShape' }}>
+      {isCustomCollider && <BallCollider args={[scale]} />}
+      <mesh scale={[scale, scale, scale]}>
+        {renderGeometry()}
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2} roughness={0.1} metalness={0.1} />
+      </mesh>
+    </RigidBody>
+  );
+};
+
 export const HeartFormation = () => {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const [samplingPoints, setSamplingPoints] = useState<{ x: number; y: number; z?: number }[]>([]);
@@ -130,7 +186,7 @@ export const HeartFormation = () => {
     sample();
   }, [formationText]);
 
-  const MAX_COUNT = 30000;
+  const MAX_COUNT = 20000;
 
   // Pre-calculate random positions and rotations for all possible particles
   const particleMeta = useMemo(() => {
@@ -169,6 +225,7 @@ export const HeartFormation = () => {
   const tempVec = useRef<THREE.Vector3>(null!);
   const handVec = useRef<THREE.Vector3>(null!);
   const transitionValue = useRef(0);
+  const rendererFade = useRef(0);
 
   useFrame((state, delta) => {
     if (!meshRef.current) return;
@@ -191,6 +248,12 @@ export const HeartFormation = () => {
     } else if (!loveFormed && formationComplete) {
       setFormationComplete(false);
     }
+
+    // Fading logic: if not tracking, ease particles to scale 0 or scatter them gently
+    const displayFactor = isTracking ? 1 : 0;
+    // We can use another lerp reference for tracking fade
+    const fadeLerp = rendererFade.current;
+    rendererFade.current = THREE.MathUtils.lerp(fadeLerp, displayFactor, delta * 2.0);
 
     for (let i = 0; i < MAX_COUNT; i++) {
       if (i >= heartCount) {
@@ -230,8 +293,9 @@ export const HeartFormation = () => {
       dummy.current.position.copy(tempVec.current);
       // Slower rotation
       dummy.current.rotation.set(rotation.x + t * speed, rotation.y + t * speed, rotation.z);
-      // Ultra-tiny hearts for high detail
-      dummy.current.scale.setScalar(THREE.MathUtils.lerp(0.01, 0.022, lerpFactor));
+      // Ultra-tiny hearts for high detail, faded when not tracking by shrinking scale
+      const baseScale = THREE.MathUtils.lerp(0.01, 0.022, lerpFactor);
+      dummy.current.scale.setScalar(baseScale * rendererFade.current);
 
       dummy.current.updateMatrix();
       meshRef.current!.setMatrixAt(i, dummy.current.matrix);

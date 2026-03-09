@@ -4,6 +4,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { Suspense, useEffect } from 'react';
 import { Environment } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Physics } from '@react-three/rapier';
 import * as THREE from 'three';
 import { useExperienceStore } from '@/lib/experience/store';
@@ -51,9 +52,10 @@ const HandControlledCamera = () => {
 };
 
 import { SettingsOverlay } from './SettingsOverlay';
+import { GestureGuide } from './GestureGuide';
 
 export const RomanticScene = () => {
-  const { experienceStarted, loveFormed, formationComplete, setHandPos, setTracking, setIsPinching, setLoveFormed } = useExperienceStore();
+  const { experienceStarted, loveFormed, formationComplete, isTracking, setHandPos, setTracking, setIsPinching, setLoveFormed } = useExperienceStore();
 
   useEffect(() => {
     console.log('RomanticScene mounted, experienceStarted:', experienceStarted);
@@ -127,19 +129,31 @@ export const RomanticScene = () => {
         </EffectComposer>
       </Canvas>
 
-      {!loveFormed && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <p className="text-white/30 text-xs font-light tracking-[0.3em] uppercase animate-pulse">Form a heart 🫶 with both hands to begin...</p>
-        </div>
-      )}
+      {!loveFormed && <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"></div>}
+
+      <AnimatePresence>
+        {experienceStarted && !isTracking && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className="absolute top-24 left-1/2 -translate-x-1/2 z-40 bg-black/40 backdrop-blur-md px-6 py-3 rounded-full border border-white/5 shadow-2xl pointer-events-none">
+            <p className="text-white/40 text-[10px] uppercase tracking-[0.2em] font-medium flex items-center gap-3 text-center">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500/80 animate-pulse" />
+              {loveFormed ? 'Silakan arahkan tanganmu ke kamera' : 'Arahkan tangan pada kamera untuk memulai'}
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {loveFormed && (
         <div className="absolute bottom-12 left-1/2 -translate-x-1/2 pointer-events-none text-center">
-          <p className="text-white/20 text-[10px] font-light tracking-[0.4em] uppercase animate-fade-in">Love Formed</p>
+          <p className="text-white/20 text-[10px] font-light tracking-[0.4em] uppercase animate-fade-in">Cinta Terbentuk</p>
         </div>
       )}
 
       <SettingsOverlay />
+      <GestureGuide />
     </div>
   );
 };

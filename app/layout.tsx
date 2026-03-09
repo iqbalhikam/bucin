@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono, Outfit, Dancing_Script } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
-import DynamicThemeProvider from '@/components/DynamicThemeProvider';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -38,7 +37,6 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} ${outfit.variable} ${dancingScript.variable} antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <DynamicThemeProvider />
           {children}
         </ThemeProvider>
       </body>
