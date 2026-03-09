@@ -362,7 +362,7 @@ export const HandTracker = React.memo(() => {
         (videoElement.srcObject as MediaStream).getTracks().forEach((track) => track.stop());
       }
     };
-  }, [experienceStarted]);
+  }, [experienceStarted, router]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
