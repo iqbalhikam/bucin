@@ -56,7 +56,7 @@ export const useExperienceStore = create<ExperienceState>((set) => ({
   calibrationData: null,
   heartIntensity: 20,
   heartColor: '#ff1a4a',
-  heartCount: 20000,
+  heartCount: 5000,
   showSettings: false,
   showGestureGuide: false,
   formationText: 'I LOVE YOU',

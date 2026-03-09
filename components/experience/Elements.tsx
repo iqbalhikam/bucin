@@ -194,7 +194,7 @@ export const HeartFormation = () => {
     sample();
   }, [formationText]);
 
-  const MAX_COUNT = 20000;
+  const MAX_COUNT = 5000;
 
   // Pre-calculate random positions and rotations for all possible particles
   const particleMeta = useMemo(() => {

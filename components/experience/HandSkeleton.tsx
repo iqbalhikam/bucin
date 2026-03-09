@@ -33,6 +33,8 @@ const HAND_CONNECTIONS = [
 
 const DUMMY_OBJ = new THREE.Object3D();
 const SKELETON_LINES = new Float32Array(126);
+const PINCH_COLOR = new THREE.Color('#ff1a4a');
+const DEFAULT_COLOR = new THREE.Color('#00f2ff');
 
 export const HandSkeleton = () => {
   const jointsRef = useRef<THREE.InstancedMesh>(null);
@@ -61,7 +63,7 @@ export const HandSkeleton = () => {
     // We interpolate the color based on if pinching or not to give clear tactile feedback
     const material = jointsRef.current.material as THREE.MeshStandardMaterial;
     if (material.color) {
-      const targetColor = isPinching ? new THREE.Color('#ff1a4a') : new THREE.Color('#00f2ff');
+      const targetColor = isPinching ? PINCH_COLOR : DEFAULT_COLOR;
       material.color.lerp(targetColor, 0.2);
       material.emissive.lerp(targetColor, 0.2);
 

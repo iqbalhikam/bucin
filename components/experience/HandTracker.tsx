@@ -340,9 +340,28 @@ export const HandTracker = React.memo(() => {
           console.log('Saved calibration:', metricsRef.current);
         }
       }
+
+      if (e.key === 'Shift' && !e.repeat) {
+        useExperienceStore.getState().setIsShiftPressed(true);
+      }
     };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') {
+        useExperienceStore.getState().setIsShiftPressed(false);
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+
+      // Safety clean up
+      useExperienceStore.getState().setIsShiftPressed(false);
+    };
   }, []);
 
   return (
