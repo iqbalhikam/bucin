@@ -156,24 +156,53 @@ export const HandTracker = React.memo(() => {
           let matchedName = '';
 
           if (results.landmarks.length > 0) {
-            results.landmarks.forEach((hand) => {
-              // Check all custom gestures
+            for (const hand of results.landmarks) {
               for (const template of customGestures) {
                 const { matched } = detectCustomGesture(hand, template.landmarks[0] as Landmark[], 0.18);
+
+                // COMPLETELY REMOVED isInZone check. If it matches, accept it anywhere!
                 if (matched) {
                   customMatched = true;
                   matchedName = template.name;
                   break;
                 }
               }
-            });
+              if (customMatched) break; // Stop checking other hands if matched
+            }
           }
 
-          if (customMatched) {
+          // Handle Gallery Navigation Gesture
+          if (matchedName === 'OPEN_GALLERY') {
+            if (!galleryGestureStartTime.current) {
+              galleryGestureStartTime.current = performance.now();
+            }
+            const elapsedGallery = performance.now() - galleryGestureStartTime.current;
+
+            if (canvasRef.current) {
+              const ctx = canvasRef.current.getContext('2d');
+              if (ctx) {
+                const percent = Math.min(100, Math.round((elapsedGallery / 2000) * 100));
+                ctx.fillStyle = '#8a2be2';
+                ctx.font = 'bold 32px Outfit, sans-serif';
+                ctx.fillText(`MEMBUKA GALERI... ${percent}%`, 140, 80);
+                ctx.fillRect(180, 100, 200 * (percent / 100), 10);
+              }
+            }
+
+            if (elapsedGallery > 2000 && !isRouting.current) {
+              isRouting.current = true;
+              router.push('/gallery');
+            }
+          } else {
+            // Reset gallery timer if gesture is lost
+            galleryGestureStartTime.current = null;
+          }
+
+          // Handle Text Formation Gestures
+          if (customMatched && matchedName !== 'OPEN_GALLERY') {
             const { setFormationText, formationText } = useExperienceStore.getState();
             let targetText = 'I LOVE YOU';
 
-            // If it matches any personalized message variation
             if (matchedName.startsWith('ILOVEYOUDELVAGRISHELA')) {
               targetText = 'I LOVE YOU\nDELVA GRISHELA';
             }
@@ -181,39 +210,6 @@ export const HandTracker = React.memo(() => {
             if (formationText !== targetText) {
               setFormationText(targetText);
             }
-          }
-
-          if (matchedName === 'OPEN_GALLERY' && !isRouting.current) {
-            if (!galleryGestureStartTime.current) {
-              galleryGestureStartTime.current = performance.now();
-            }
-            const elapsed = performance.now() - galleryGestureStartTime.current;
-
-            if (canvasRef.current) {
-              const ctx = canvasRef.current.getContext('2d');
-              if (ctx) {
-                const percent = Math.min(100, Math.round((elapsed / 2000) * 100));
-                ctx.save();
-                ctx.scale(-1, 1);
-                ctx.fillStyle = '#ff2d55';
-                ctx.font = 'bold 32px Outfit, sans-serif';
-                ctx.fillText(`MEMBUKA PORTAL GALERI... ${percent}%`, -540, 140);
-                ctx.restore();
-
-                // Progress bar
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-                ctx.fillRect(100, 160, 400, 15);
-                ctx.fillStyle = '#ff2d55';
-                ctx.fillRect(100, 160, 400 * (percent / 100), 15);
-              }
-            }
-
-            if (elapsed > 2000 && !isRouting.current) {
-              isRouting.current = true;
-              router.push('/gallery');
-            }
-          } else if (matchedName !== 'OPEN_GALLERY') {
-            galleryGestureStartTime.current = null;
           }
 
           // Two-Handed Heart Detection
