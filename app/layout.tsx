@@ -24,8 +24,8 @@ const dancingScript = Dancing_Script({
 });
 
 export const metadata: Metadata = {
-  title: 'Our Romantic Journey',
-  description: 'A digital space for our memories.',
+  title: 'From Iqbal To Delva',
+  description: 'untuk pacarku tercinta',
 };
 
 export default function RootLayout({
