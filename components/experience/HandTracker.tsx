@@ -115,7 +115,7 @@ export const HandTracker = React.memo(() => {
         const store = useExperienceStore.getState();
 
         if (results.landmarks && results.landmarks.length > 0) {
-          store.setTracking(true);
+          if (store.isTracking !== true) store.setTracking(true);
 
           if (canvasRef.current) {
             const ctx = canvasRef.current.getContext('2d');
@@ -124,8 +124,6 @@ export const HandTracker = React.memo(() => {
 
           // Single Hand interaction (for cursor)
           const primaryHand = results.landmarks[0];
-          // Silent mutation to prevent Zustand from firing listeners 60 times a second
-          store.handLandmarks = primaryHand;
 
           const thumbTip = primaryHand[4];
           const indexTip = primaryHand[8];
@@ -133,7 +131,7 @@ export const HandTracker = React.memo(() => {
           // Pinch for primary hand
           const pinchDist = Math.sqrt(Math.pow(thumbTip.x - indexTip.x, 2) + Math.pow(thumbTip.y - indexTip.y, 2));
           const pinching = pinchDist < 0.05;
-          store.setIsPinching(pinching);
+          if (store.isPinching !== pinching) store.setIsPinching(pinching);
 
           const targetX = 1 - (thumbTip.x + indexTip.x) / 2;
           const targetY = (thumbTip.y + indexTip.y) / 2;
@@ -142,7 +140,10 @@ export const HandTracker = React.memo(() => {
           const newX = lastPos.current.x + (targetX - lastPos.current.x) * smoothing;
           const newY = lastPos.current.y + (targetY - lastPos.current.y) * smoothing;
           lastPos.current = { x: newX, y: newY };
-          store.setHandPos({ x: newX, y: newY });
+
+          // Batch high-frequency data using setState to bypass reactive setters while keeping Zustand compliant
+          useExperienceStore.setState({ handLandmarks: primaryHand, handPos: { x: newX, y: newY } });
+
           // Custom Gesture Detection (ILOVEYOU & ILOVEYOUDELVAGRISHELA)
           let customMatched = false;
           let matchedName = '';
@@ -298,8 +299,8 @@ export const HandTracker = React.memo(() => {
             }
           }
         } else {
-          store.setTracking(false);
-          store.setIsPinching(false);
+          if (store.isTracking !== false) store.setTracking(false);
+          if (store.isPinching !== false) store.setIsPinching(false);
           heartGestureStartTime.current = null;
           if (canvasRef.current) {
             const ctx = canvasRef.current.getContext('2d');
