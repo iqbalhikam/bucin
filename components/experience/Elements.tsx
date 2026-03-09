@@ -41,9 +41,9 @@ export const Heart = ({ position, scale = 0.8, color = '#ff2d55' }: HeartProps) 
   );
 
   const rbRef = useRef<RapierRigidBody>(null);
-  const { handPos } = useExperienceStore();
 
   useFrame(() => {
+    const { handPos } = useExperienceStore.getState();
     if (!mesh.current || !rbRef.current) return;
 
     const targetX = (handPos.x - 0.5) * 0.5;
@@ -53,8 +53,10 @@ export const Heart = ({ position, scale = 0.8, color = '#ff2d55' }: HeartProps) 
     mesh.current.rotation.x = THREE.MathUtils.lerp(mesh.current.rotation.x, Math.PI + targetY, 0.05);
   });
 
+  const HEART_USER_DATA = { type: 'heart' };
+
   return (
-    <RigidBody ref={rbRef} position={position} colliders={false} linearDamping={0.5} angularDamping={0.5} userData={{ type: 'heart' }}>
+    <RigidBody ref={rbRef} position={position} colliders={false} linearDamping={0.5} angularDamping={0.5} userData={HEART_USER_DATA}>
       <BallCollider args={[scale]} />
       <Float speed={2} rotationIntensity={1} floatIntensity={1}>
         <mesh ref={mesh} scale={scale}>
@@ -132,7 +134,13 @@ export const HeartFormation = () => {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const [samplingPoints, setSamplingPoints] = useState<{ x: number; y: number; z?: number }[]>([]);
 
-  const { loveFormed, isTracking, handPos, formationComplete, setFormationComplete, heartIntensity, heartColor, heartCount, formationText } = useExperienceStore();
+  const loveFormed = useExperienceStore((state) => state.loveFormed);
+  const formationComplete = useExperienceStore((state) => state.formationComplete);
+  const setFormationComplete = useExperienceStore((state) => state.setFormationComplete);
+  const heartIntensity = useExperienceStore((state) => state.heartIntensity);
+  const heartColor = useExperienceStore((state) => state.heartColor);
+  const heartCount = useExperienceStore((state) => state.heartCount);
+  const formationText = useExperienceStore((state) => state.formationText);
 
   // Sample points in a useEffect to handle font loading and text changes
   useEffect(() => {
@@ -233,6 +241,7 @@ export const HeartFormation = () => {
     if (!tempVec.current) tempVec.current = new THREE.Vector3();
     if (!handVec.current) handVec.current = new THREE.Vector3();
 
+    const { handPos, isTracking } = useExperienceStore.getState();
     handVec.current.set((handPos.x - 0.5) * 20, -(handPos.y - 0.5) * 12, 0);
 
     const targetTransition = loveFormed ? 1 : 0;
@@ -243,7 +252,7 @@ export const HeartFormation = () => {
     const lerpFactor = transitionValue.current;
 
     // Manage global formation complete state
-    if (loveFormed && lerpFactor > 0.999 && !formationComplete) {
+    if (loveFormed && lerpFactor > 0.9 && !formationComplete) {
       setFormationComplete(true);
     } else if (!loveFormed && formationComplete) {
       setFormationComplete(false);
@@ -336,12 +345,12 @@ export const Initials = ({ name1 = 'T', name2 = 'D' }) => {
   return (
     <Float speed={1.5} rotationIntensity={0.5} floatIntensity={0.5}>
       <group ref={groupRef} position={[0, 0, 0]}>
-        <Text fontSize={1.6} color="#ffffff" anchorX="center" position={[-1.3, 0, 0]} font="https://fonts.gstatic.com/s/outfit/v11/QGYz6tnaIcEePaasvTc.woff">
+        <Text fontSize={1.6} color="#ffffff" anchorX="center" position={[-1.3, 0, 0]}>
           {name1}
           <meshPhysicalMaterial emissive="#ffffff" emissiveIntensity={0.8} transmission={0.9} thickness={1} roughness={0.1} />
         </Text>
 
-        <Text fontSize={1.6} color="#ffffff" anchorX="center" position={[1.3, 0, 0]} font="https://fonts.gstatic.com/s/outfit/v11/QGYz6tnaIcEePaasvTc.woff">
+        <Text fontSize={1.6} color="#ffffff" anchorX="center" position={[1.3, 0, 0]}>
           {name2}
           <meshPhysicalMaterial emissive="#ffffff" emissiveIntensity={0.8} transmission={0.9} thickness={1} roughness={0.1} />
         </Text>
@@ -350,17 +359,19 @@ export const Initials = ({ name1 = 'T', name2 = 'D' }) => {
   );
 };
 
+// Hide WASM Rapier objects completely from Turbopack/React Developer Tools Hooks
+const handCursorHovered = new Set<RapierRigidBody>();
+let handCursorGrabbed: RapierRigidBody | null = null;
+
 export const HandCursor = () => {
   const meshRef = useRef<THREE.Mesh>(null);
   const lightRef = useRef<THREE.PointLight>(null);
   const rbRef = useRef<RapierRigidBody>(null);
-  const [grabbedBody, setGrabbedBody] = useState<RapierRigidBody | null>(null);
-  const hoveredBodies = useRef<Set<RapierRigidBody>>(new Set());
-  const { handPos, isPinching } = useExperienceStore();
 
   useFrame((state) => {
     if (!meshRef.current || !rbRef.current) return;
 
+    const { handPos, isPinching } = useExperienceStore.getState();
     const t = state.clock.elapsedTime;
     const targetX = (handPos.x - 0.5) * 25;
     const targetY = -(handPos.y - 0.5) * 15;
@@ -376,26 +387,26 @@ export const HandCursor = () => {
       lightRef.current.position.set(nextX, nextY, targetZ);
     }
 
-    const isHovering = hoveredBodies.current.size > 0;
+    const isHovering = handCursorHovered.size > 0;
 
     if (isPinching) {
-      if (grabbedBody) {
-        grabbedBody.setTranslation({ x: nextX, y: nextY, z: targetZ }, true);
-        grabbedBody.setLinvel({ x: 0, y: 0, z: 0 }, true);
+      if (handCursorGrabbed) {
+        handCursorGrabbed.setTranslation({ x: nextX, y: nextY, z: targetZ }, true);
+        handCursorGrabbed.setLinvel({ x: 0, y: 0, z: 0 }, true);
       } else if (isHovering) {
-        const [first] = Array.from(hoveredBodies.current);
-        if (first) setGrabbedBody(first);
+        const [first] = Array.from(handCursorHovered);
+        if (first) handCursorGrabbed = first;
       }
-    } else if (grabbedBody) {
+    } else if (handCursorGrabbed) {
       // applyImpulse is called in useFrame, which is technically outside the main render but inside the frame loop.
       // We'll use deterministic-ish values to keep it clean.
-      grabbedBody.applyImpulse({ x: (seededRandom(t) - 0.5) * 2, y: (seededRandom(t + 1) - 0.5) * 2, z: (seededRandom(t + 2) - 0.5) * 2 }, true);
-      setGrabbedBody(null);
+      handCursorGrabbed.applyImpulse({ x: (seededRandom(t) - 0.5) * 2, y: (seededRandom(t + 1) - 0.5) * 2, z: (seededRandom(t + 2) - 0.5) * 2 }, true);
+      handCursorGrabbed = null;
     }
 
     if (lightRef.current) {
-      const targetIntensity = grabbedBody ? 15 : isHovering ? 10 : 5;
-      const targetColor = grabbedBody ? '#ff2d55' : isHovering ? '#ffffff' : '#ffb6c1';
+      const targetIntensity = handCursorGrabbed ? 15 : isHovering ? 10 : 5;
+      const targetColor = handCursorGrabbed ? '#ff2d55' : isHovering ? '#ffffff' : '#ffb6c1';
       lightRef.current.intensity = THREE.MathUtils.lerp(lightRef.current.intensity, targetIntensity, 0.1);
       lightRef.current.color.lerp(new THREE.Color(targetColor), 0.1);
     }
@@ -409,12 +420,12 @@ export const HandCursor = () => {
         colliders={false}
         onIntersectionEnter={({ other }) => {
           if (other.rigidBody && other.rigidBodyObject?.userData?.type === 'heart') {
-            hoveredBodies.current.add(other.rigidBody);
+            handCursorHovered.add(other.rigidBody);
           }
         }}
         onIntersectionExit={({ other }) => {
           if (other.rigidBody) {
-            hoveredBodies.current.delete(other.rigidBody);
+            handCursorHovered.delete(other.rigidBody);
           }
         }}>
         <CuboidCollider args={[0.8, 0.8, 15]} sensor />

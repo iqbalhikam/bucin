@@ -4,7 +4,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Settings, X, BookOpen } from 'lucide-react';
 
 export const SettingsOverlay = () => {
-  const { showSettings, setShowSettings, showGestureGuide, setShowGestureGuide, heartIntensity, setHeartIntensity, heartColor, setHeartColor } = useExperienceStore();
+  const showSettings = useExperienceStore((state) => state.showSettings);
+  const setShowSettings = useExperienceStore((state) => state.setShowSettings);
+  const showGestureGuide = useExperienceStore((state) => state.showGestureGuide);
+  const setShowGestureGuide = useExperienceStore((state) => state.setShowGestureGuide);
+  const heartIntensity = useExperienceStore((state) => state.heartIntensity);
+  const setHeartIntensity = useExperienceStore((state) => state.setHeartIntensity);
+  const heartColor = useExperienceStore((state) => state.heartColor);
+  const setHeartColor = useExperienceStore((state) => state.setHeartColor);
 
   const colors = [
     '#ff1a4a', // Neon Red

@@ -1,21 +1,22 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { HandLandmarker, FilesetResolver, Landmark } from '@mediapipe/tasks-vision';
 import { useExperienceStore } from '@/lib/experience/store';
 import { detectCustomGesture } from '@/lib/gestures/utils';
 import customGestures from '@/src/data/customGestures.json';
 
-export const HandTracker = () => {
+export const HandTracker = React.memo(() => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { setHandPos, setTracking, setIsPinching, setLoveFormed, setCalibrationData, experienceStarted, isTracking, isPinching, calibrationData } = useExperienceStore();
+  const experienceStarted = useExperienceStore((state) => state.experienceStarted);
+  const calibrationData = useExperienceStore((state) => state.calibrationData);
+  const statusOverlayRef = useRef<HTMLDivElement>(null);
   const landmarkerRef = useRef<HandLandmarker | null>(null);
   const lastPos = useRef({ x: 0.5, y: 0.5 });
   const isCalibratingRef = useRef(false);
   const metricsRef = useRef<{ thumbDist: number; indexDist: number; wristDist: number; verticalSpan: number } | null>(null);
   const heartGestureStartTime = useRef<number | null>(null);
-  const [isHeartActive, setIsHeartActive] = useState(false);
   const calibrationDataRef = useRef(calibrationData);
   const trackingStartTime = useRef<number | null>(null);
 
@@ -111,9 +112,10 @@ export const HandTracker = () => {
       if (videoRef.current && landmarkerRef.current && videoRef.current.readyState === 4) {
         const startTimeMs = performance.now();
         const results = landmarkerRef.current.detectForVideo(videoRef.current, startTimeMs);
+        const store = useExperienceStore.getState();
 
         if (results.landmarks && results.landmarks.length > 0) {
-          setTracking(true);
+          store.setTracking(true);
 
           if (canvasRef.current) {
             const ctx = canvasRef.current.getContext('2d');
@@ -122,12 +124,16 @@ export const HandTracker = () => {
 
           // Single Hand interaction (for cursor)
           const primaryHand = results.landmarks[0];
+          // Silent mutation to prevent Zustand from firing listeners 60 times a second
+          store.handLandmarks = primaryHand;
+
           const thumbTip = primaryHand[4];
           const indexTip = primaryHand[8];
 
           // Pinch for primary hand
           const pinchDist = Math.sqrt(Math.pow(thumbTip.x - indexTip.x, 2) + Math.pow(thumbTip.y - indexTip.y, 2));
-          setIsPinching(pinchDist < 0.05);
+          const pinching = pinchDist < 0.05;
+          store.setIsPinching(pinching);
 
           const targetX = 1 - (thumbTip.x + indexTip.x) / 2;
           const targetY = (thumbTip.y + indexTip.y) / 2;
@@ -136,7 +142,7 @@ export const HandTracker = () => {
           const newX = lastPos.current.x + (targetX - lastPos.current.x) * smoothing;
           const newY = lastPos.current.y + (targetY - lastPos.current.y) * smoothing;
           lastPos.current = { x: newX, y: newY };
-          setHandPos({ x: newX, y: newY });
+          store.setHandPos({ x: newX, y: newY });
           // Custom Gesture Detection (ILOVEYOU & ILOVEYOUDELVAGRISHELA)
           let customMatched = false;
           let matchedName = '';
@@ -243,7 +249,6 @@ export const HandTracker = () => {
           }
 
           const isAnyLoveActive = customMatched || heartMatched;
-          setIsHeartActive(isAnyLoveActive);
 
           if (isAnyLoveActive) {
             if (!heartGestureStartTime.current) {
@@ -262,27 +267,49 @@ export const HandTracker = () => {
               }
             }
 
-            if (elapsed > 100 && !useExperienceStore.getState().loveFormed) {
+            if (elapsed > 100 && !store.loveFormed) {
               // Quicker reaction
-              setLoveFormed(true);
+              store.setLoveFormed(true);
             }
           } else {
             heartGestureStartTime.current = null;
-            if (useExperienceStore.getState().loveFormed) {
-              setLoveFormed(false);
+            if (store.loveFormed) {
+              store.setLoveFormed(false);
             }
           }
 
           // Fallback reveal timer
           if (!trackingStartTime.current) trackingStartTime.current = performance.now();
+
+          if (statusOverlayRef.current) {
+            const overlay = statusOverlayRef.current;
+            if (isAnyLoveActive) {
+              overlay.innerText = 'Membentuk Cinta...';
+              overlay.style.backgroundColor = 'rgba(239, 68, 68, 0.8)';
+              overlay.style.transform = 'scale(1)';
+            } else if (pinching) {
+              overlay.innerText = 'Genggam';
+              overlay.style.backgroundColor = 'rgba(236, 72, 153, 0.9)';
+              overlay.style.transform = 'scale(1.1)';
+            } else {
+              overlay.innerText = 'Terdeteksi';
+              overlay.style.backgroundColor = 'rgba(34, 197, 94, 0.8)';
+              overlay.style.transform = 'scale(1)';
+            }
+          }
         } else {
-          setTracking(false);
-          setIsPinching(false);
-          setIsHeartActive(false);
+          store.setTracking(false);
+          store.setIsPinching(false);
           heartGestureStartTime.current = null;
           if (canvasRef.current) {
             const ctx = canvasRef.current.getContext('2d');
             ctx?.clearRect(0, 0, 640, 480);
+          }
+          if (statusOverlayRef.current) {
+            const overlay = statusOverlayRef.current;
+            overlay.innerText = 'Mencari...';
+            overlay.style.backgroundColor = 'rgba(239, 68, 68, 0.8)';
+            overlay.style.transform = 'scale(1)';
           }
         }
       }
@@ -300,7 +327,7 @@ export const HandTracker = () => {
         (videoElement.srcObject as MediaStream).getTracks().forEach((track) => track.stop());
       }
     };
-  }, [experienceStarted, setHandPos, setTracking, setIsPinching, setLoveFormed, setIsHeartActive]);
+  }, [experienceStarted]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -308,14 +335,14 @@ export const HandTracker = () => {
         isCalibratingRef.current = !isCalibratingRef.current;
         console.log('Calibration mode:', isCalibratingRef.current ? 'ON' : 'OFF');
         if (!isCalibratingRef.current && metricsRef.current) {
-          setCalibrationData(metricsRef.current);
+          useExperienceStore.getState().setCalibrationData(metricsRef.current);
           console.log('Saved calibration:', metricsRef.current);
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [setCalibrationData]);
+  }, []);
 
   return (
     <div
@@ -357,15 +384,18 @@ export const HandTracker = () => {
         }}
       />
       <div
+        ref={statusOverlayRef}
         className="absolute top-2 left-2 px-2 py-0.5 rounded text-[10px] font-bold tracking-tighter uppercase transition-all duration-200"
         style={{
-          backgroundColor: isPinching ? 'rgba(236, 72, 153, 0.9)' : isTracking ? 'rgba(34, 197, 94, 0.8)' : 'rgba(239, 68, 68, 0.8)',
+          backgroundColor: 'rgba(239, 68, 68, 0.8)',
           color: 'white',
-          transform: isPinching ? 'scale(1.1)' : 'scale(1)',
+          transform: 'scale(1)',
           textShadow: '0 1px 2px rgba(0,0,0,0.5)',
         }}>
-        {isHeartActive ? 'Membentuk Cinta...' : isPinching ? 'Genggam' : isTracking ? 'Terdeteksi' : 'Mencari...'}
+        Mencari...
       </div>
     </div>
   );
-};
+});
+
+HandTracker.displayName = 'HandTracker';

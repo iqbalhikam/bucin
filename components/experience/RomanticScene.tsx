@@ -8,7 +8,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Physics } from '@react-three/rapier';
 import * as THREE from 'three';
 import { useExperienceStore } from '@/lib/experience/store';
-import { Heart, Initials, GlowParticles, HandCursor, HeartFormation } from './Elements';
+import { Heart, Initials, GlowParticles, HeartFormation } from './Elements';
+import { FloatingPhoto } from './FloatingPhoto';
+import { HandSkeleton } from './HandSkeleton';
 
 const HEART_DATA = [
   { id: 1, position: [5, 2, -5], scale: 0.7, color: '#ff2d55' },
@@ -29,7 +31,7 @@ const HEART_DATA = [
 ] as const;
 
 const HandControlledCamera = () => {
-  const { formationComplete } = useExperienceStore();
+  const formationComplete = useExperienceStore((state) => state.formationComplete);
 
   useFrame((state) => {
     const { handPos } = useExperienceStore.getState();
@@ -55,7 +57,16 @@ import { SettingsOverlay } from './SettingsOverlay';
 import { GestureGuide } from './GestureGuide';
 
 export const RomanticScene = () => {
-  const { experienceStarted, loveFormed, formationComplete, isTracking, setHandPos, setTracking, setIsPinching, setLoveFormed } = useExperienceStore();
+  const experienceStarted = useExperienceStore((state) => state.experienceStarted);
+  const loveFormed = useExperienceStore((state) => state.loveFormed);
+  const formationComplete = useExperienceStore((state) => state.formationComplete);
+  const isTracking = useExperienceStore((state) => state.isTracking);
+  const photoData = useExperienceStore((state) => state.photoData);
+  // Actions
+  const setHandPos = useExperienceStore((state) => state.setHandPos);
+  const setTracking = useExperienceStore((state) => state.setTracking);
+  const setIsPinching = useExperienceStore((state) => state.setIsPinching);
+  const setLoveFormed = useExperienceStore((state) => state.setLoveFormed);
 
   useEffect(() => {
     console.log('RomanticScene mounted, experienceStarted:', experienceStarted);
@@ -94,34 +105,40 @@ export const RomanticScene = () => {
 
         <HeartFormation />
 
-        {loveFormed && (
-          <Suspense fallback={null}>
-            <HandControlledCamera />
+        {/* Suspense must wrap everything that needs fonts/textures including the photos */}
+        <Suspense fallback={null}>
+          <HandControlledCamera />
 
-            {/* Much stronger lighting for physical units */}
-            <ambientLight intensity={1.425} />
-            <pointLight position={[10, 10, 10]} intensity={76} color="#ffb6c1" />
-            <pointLight position={[-10, -10, 10]} intensity={57} color="#8a2be2" />
-            <pointLight position={[0, 15, -5]} intensity={95} color="#ffd700" />
+          {/* Strong lighting always active */}
+          <ambientLight intensity={1.425} />
+          <pointLight position={[10, 10, 10]} intensity={76} color="#ffb6c1" />
+          <pointLight position={[-10, -10, 10]} intensity={57} color="#8a2be2" />
+          <pointLight position={[0, 15, -5]} intensity={95} color="#ffd700" />
 
-            {formationComplete && (
+          {/* Physics wrapper must always be active if we want photos to be interactive anytime */}
+          <Physics gravity={[0, 0, 0]}>
+            {/* Always display floating photos */}
+            {photoData.map((photo, index) => (
+              <FloatingPhoto key={photo.id} id={photo.id} url={photo.path} initialPosition={photo.initialPosition} index={index} />
+            ))}
+            {/* 3D Hand Skeleton with Physics for spatial computing interaction */}
+            <HandSkeleton />
+
+            {/* Only show these text/love interactions when love is fully formed */}
+            {loveFormed && formationComplete && (
               <>
                 <GlowParticles />
-
-                <Physics gravity={[0, 0, 0]}>
-                  {HEART_DATA.map((heart) => (
-                    <Heart key={heart.id} position={heart.position as [number, number, number]} scale={heart.scale} color={heart.color} />
-                  ))}
-
-                  <Initials name1="T" name2="D" />
-                  <HandCursor />
-                </Physics>
+                {HEART_DATA.map((heart) => (
+                  <Heart key={heart.id} position={heart.position as [number, number, number]} scale={heart.scale} color={heart.color} />
+                ))}
+                <Initials name1="T" name2="D" />
               </>
             )}
+          </Physics>
 
-            <Environment preset="night" />
-          </Suspense>
-        )}
+          <Environment preset="night" />
+        </Suspense>
+
         {!loveFormed && <gridHelper args={[20, 20, 0x333333, 0x111111]} position={[0, -2, 0]} />}
 
         <EffectComposer>

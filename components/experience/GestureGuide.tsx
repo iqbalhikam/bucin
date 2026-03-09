@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, X } from 'lucide-react';
 
 export const GestureGuide = () => {
-  const { showGestureGuide, setShowGestureGuide } = useExperienceStore();
+  const showGestureGuide = useExperienceStore((state) => state.showGestureGuide);
+  const setShowGestureGuide = useExperienceStore((state) => state.setShowGestureGuide);
 
   const guides = [
     {
