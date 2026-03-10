@@ -35,8 +35,8 @@ const HandControlledCamera = () => {
 
     // Map hand coordinates (0..1) to 3D targets
     // Only move camera once formation is complete to maintain assembly clarity
-    const targetX = formationComplete ? (handPos.x - 0.5) * 20 : 0;
-    const targetY = formationComplete ? -(handPos.y - 0.5) * 12 : 0;
+    const targetX = formationComplete ? -(handPos.x - 0.5) * 20 : 0;
+    const targetY = formationComplete ? (handPos.y - 0.5) * 12 : 0;
 
     // Smooth movement with lerp
     state.camera.position.x = THREE.MathUtils.lerp(state.camera.position.x, targetX, 0.08);

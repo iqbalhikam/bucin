@@ -125,11 +125,36 @@ export const DynamicShape = ({ type, position, color = '#ff2d55', scale = 1 }: {
   );
 };
 
+const HAND_CONNECTIONS = [
+  [0, 1],
+  [1, 2],
+  [2, 3],
+  [3, 4],
+  [0, 5],
+  [5, 6],
+  [6, 7],
+  [7, 8],
+  [0, 9],
+  [9, 10],
+  [10, 11],
+  [11, 12],
+  [0, 13],
+  [13, 14],
+  [14, 15],
+  [15, 16],
+  [0, 17],
+  [17, 18],
+  [18, 19],
+  [19, 20],
+  [5, 9],
+  [9, 13],
+  [13, 17],
+];
+
 export const HeartFormation = () => {
   const meshRef = useRef<THREE.InstancedMesh>(null);
-  const [samplingPoints, setSamplingPoints] = useState<{ x: number; y: number; z?: number }[]>([]);
+  const [samplingPoints, setSamplingPoints] = useState<{ x: number; y: number }[]>([]);
 
-  const loveFormed = useExperienceStore((state) => state.loveFormed);
   const formationComplete = useExperienceStore((state) => state.formationComplete);
   const setFormationComplete = useExperienceStore((state) => state.setFormationComplete);
   const heartIntensity = useExperienceStore((state) => state.heartIntensity);
@@ -137,28 +162,22 @@ export const HeartFormation = () => {
   const heartCount = useExperienceStore((state) => state.heartCount);
   const formationText = useExperienceStore((state) => state.formationText);
 
-  // Sample points in a useEffect to handle font loading and text changes
   useEffect(() => {
     const sample = async () => {
       if (typeof document === 'undefined') return;
-
-      // Wait for fonts to be ready for accurate sampling
       if (document.fonts) await document.fonts.ready;
 
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
-      // Larger canvas for a wider, more detailed formation
       canvas.width = 1200;
-      canvas.height = 450; // Increased height for two lines
+      canvas.height = 450;
 
       if (ctx) {
         ctx.fillStyle = 'white';
-        // Massive, ultra-bold font
-        ctx.font = '900 120px Outfit, Inter, Arial Black, sans-serif'; // Slightly smaller font to fit more text
+        ctx.font = '900 120px Outfit, Inter, Arial Black, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        // Handle multi-line text
         const lines = formationText.split('\n');
         const lineHeight = 140;
         const startY = 225 - ((lines.length - 1) * lineHeight) / 2;
@@ -171,13 +190,12 @@ export const HeartFormation = () => {
         const data = imageData.data;
         const points = [];
 
-        // Ultra-fine sampling (every 2 pixels) for 8,000 particles
         for (let y = 0; y < 450; y += 2) {
           for (let x = 0; x < 1200; x += 2) {
             const alpha = data[(y * 1200 + x) * 4 + 3];
             if (alpha > 120) {
               points.push({
-                x: (x - 600) / 70, // Back to standard left-to-right
+                x: (x - 600) / 70,
                 y: (225 - y) / 70 + 0.5,
               });
             }
@@ -191,16 +209,16 @@ export const HeartFormation = () => {
 
   const MAX_COUNT = 20000;
 
-  // Pre-calculate random positions and rotations for all possible particles
   const particleMeta = useMemo(() => {
     return Array.from({ length: MAX_COUNT }).map((_, i) => ({
       random: new THREE.Vector3((seededRandom(i) - 0.5) * 50, (seededRandom(i + 1) - 0.5) * 40, (seededRandom(i + 2) - 0.5) * 30),
       rotation: new THREE.Euler(seededRandom(i + 3) * Math.PI, seededRandom(i + 4) * Math.PI, seededRandom(i + 5) * Math.PI),
       speed: 0.005 + seededRandom(i + 6) * 0.02,
+      boneIndex: i % HAND_CONNECTIONS.length,
+      boneT: seededRandom(i + 7),
     }));
   }, []);
 
-  // Targets are updated when samplingPoints or heartCount changes
   const particles = useMemo(() => {
     const temp = [];
     const hasPoints = samplingPoints.length > 0;
@@ -209,9 +227,8 @@ export const HeartFormation = () => {
       const target = new THREE.Vector3();
       if (i < heartCount && hasPoints) {
         const point = samplingPoints[i % samplingPoints.length];
-        target.set(point.x, point.y, point.z ?? 0);
+        target.set(point.x, point.y, 0);
       } else {
-        // Move unused particles out of sight
         target.set(0, 0, 1000);
       }
 
@@ -224,69 +241,70 @@ export const HeartFormation = () => {
     return temp;
   }, [heartCount, samplingPoints, particleMeta]);
 
-  const dummy = useRef<THREE.Object3D>(null!);
-  const tempVec = useRef<THREE.Vector3>(null!);
-  const handVec = useRef<THREE.Vector3>(null!);
+  const dummy = useRef(new THREE.Object3D());
+  const tempVec = useRef(new THREE.Vector3());
+  const swarmTarget = useRef(new THREE.Vector3());
+  const landmarkA = useRef(new THREE.Vector3());
+  const landmarkB = useRef(new THREE.Vector3());
   const transitionValue = useRef(0);
   const rendererFade = useRef(0);
 
   useFrame((state, delta) => {
     if (!meshRef.current) return;
-    if (!dummy.current) dummy.current = new THREE.Object3D();
-    if (!tempVec.current) tempVec.current = new THREE.Vector3();
-    if (!handVec.current) handVec.current = new THREE.Vector3();
 
-    const { handPos, isTracking } = useExperienceStore.getState();
-    handVec.current.set((handPos.x - 0.5) * 20, -(handPos.y - 0.5) * 12, 0);
+    const { isTracking, loveFormed, handLandmarks } = useExperienceStore.getState();
 
     const targetTransition = loveFormed ? 1 : 0;
-    // Slower, more cinematic transition speed
     transitionValue.current = THREE.MathUtils.lerp(transitionValue.current, targetTransition, delta * 1.5);
 
     const t = state.clock.elapsedTime;
     const lerpFactor = transitionValue.current;
 
-    // Manage global formation complete state
     if (loveFormed && lerpFactor > 0.9 && !formationComplete) {
       setFormationComplete(true);
     } else if (!loveFormed && formationComplete) {
       setFormationComplete(false);
     }
 
-    // Fading logic: if not tracking, ease particles to scale 0 or scatter them gently
     const displayFactor = isTracking ? 1 : 0;
-    // We can use another lerp reference for tracking fade
-    const fadeLerp = rendererFade.current;
-    rendererFade.current = THREE.MathUtils.lerp(fadeLerp, displayFactor, delta * 2.0);
+    rendererFade.current = THREE.MathUtils.lerp(rendererFade.current, displayFactor, delta * 2.0);
 
     for (let i = 0; i < MAX_COUNT; i++) {
       if (i >= heartCount) {
-        // Only update if we are near the edge of the active count
-        // to move them out of view efficiently
         if (i < heartCount + 500) {
           dummy.current.position.set(0, 0, 1000);
           dummy.current.updateMatrix();
-          meshRef.current!.setMatrixAt(i, dummy.current.matrix);
+          meshRef.current.setMatrixAt(i, dummy.current.matrix);
         }
         continue;
       }
 
       const p = particles[i];
-      const { target, random, rotation, speed } = p;
+      const { target, random, rotation, speed, boneIndex, boneT } = p;
 
-      // Base position: Lerp between random scatter and text target
       tempVec.current.lerpVectors(random, target, lerpFactor);
 
-      // --- Interactive Hand Influence Disabled for Legibility ---
-      // (Removed to prevent "void circle" effect/holes in the text)
+      if (!loveFormed && isTracking && handLandmarks && handLandmarks.length > 20) {
+        const connection = HAND_CONNECTIONS[boneIndex];
+        const lmA = handLandmarks[connection[0]];
+        const lmB = handLandmarks[connection[1]];
 
-      // Slow-motion floating / Random motion (only focus on it when formed)
+        landmarkA.current.set((1 - lmA.x - 0.5) * 25, -(lmA.y - 0.5) * 15, -lmA.z * 20);
+        landmarkB.current.set((1 - lmB.x - 0.5) * 25, -(lmB.y - 0.5) * 15, -lmB.z * 20);
+
+        swarmTarget.current.lerpVectors(landmarkA.current, landmarkB.current, boneT);
+        swarmTarget.current.x += Math.sin(t * 2 + i) * 0.2;
+        swarmTarget.current.y += Math.cos(t * 2.1 + i) * 0.2;
+
+        tempVec.current.lerp(swarmTarget.current, 0.15);
+      }
+
       if (lerpFactor > 0.01) {
         tempVec.current.y += Math.sin(t * 0.5 + i) * 0.05 * lerpFactor;
         tempVec.current.x += Math.cos(t * 0.4 + i) * 0.04 * lerpFactor;
       }
 
-      if (lerpFactor < 0.99) {
+      if (lerpFactor < 0.99 && (!isTracking || loveFormed)) {
         const scatterIntensity = (isTracking ? 0.3 : 3.0) * (1 - lerpFactor);
         const noiseT = t * speed * 2 + i;
         tempVec.current.x += Math.sin(noiseT) * scatterIntensity;
@@ -295,21 +313,12 @@ export const HeartFormation = () => {
       }
 
       dummy.current.position.copy(tempVec.current);
-      // Slower rotation
       dummy.current.rotation.set(rotation.x + t * speed, rotation.y + t * speed, rotation.z);
-      // Ultra-tiny hearts for high detail, faded when not tracking by shrinking scale
       const baseScale = THREE.MathUtils.lerp(0.01, 0.022, lerpFactor);
       dummy.current.scale.setScalar(baseScale * rendererFade.current);
 
       dummy.current.updateMatrix();
-      meshRef.current!.setMatrixAt(i, dummy.current.matrix);
-    }
-    // For particles beyond heartCount, we need to ensure they are at target (1000z)
-    // but the loop above stops at heartCount.
-    // If heartCount decreases, we need to update the "leftover" instances.
-    for (let i = heartCount; i < MAX_COUNT; i += 100) {
-      // Sparse update for efficiency
-      // Usually target is already 1000z, so we just set them once or skip
+      meshRef.current.setMatrixAt(i, dummy.current.matrix);
     }
 
     meshRef.current.instanceMatrix.needsUpdate = true;
@@ -354,7 +363,6 @@ export const Initials = ({ name1 = 'T', name2 = 'D' }) => {
   );
 };
 
-// Hide WASM Rapier objects completely from Turbopack/React Developer Tools Hooks
 const handCursorHovered = new Set<RapierRigidBody>();
 let handCursorGrabbed: RapierRigidBody | null = null;
 
@@ -393,8 +401,6 @@ export const HandCursor = () => {
         if (first) handCursorGrabbed = first;
       }
     } else if (handCursorGrabbed) {
-      // applyImpulse is called in useFrame, which is technically outside the main render but inside the frame loop.
-      // We'll use deterministic-ish values to keep it clean.
       handCursorGrabbed.applyImpulse({ x: (seededRandom(t) - 0.5) * 2, y: (seededRandom(t + 1) - 0.5) * 2, z: (seededRandom(t + 2) - 0.5) * 2 }, true);
       handCursorGrabbed = null;
     }

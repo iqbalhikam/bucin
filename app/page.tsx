@@ -4,13 +4,10 @@ import { useExperienceStore } from '@/lib/experience/store';
 import { HandTracker } from '@/components/experience/HandTracker';
 import { RomanticScene } from '@/components/experience/RomanticScene';
 import { motion, AnimatePresence } from 'framer-motion';
-import Link from 'next/link';
 
 export default function ExperiencePage() {
   const experienceStarted = useExperienceStore((state) => state.experienceStarted);
   const startExperience = useExperienceStore((state) => state.startExperience);
-  const loveFormed = useExperienceStore((state) => state.loveFormed);
-  const formationComplete = useExperienceStore((state) => state.formationComplete);
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-linear-to-br from-gray-950 via-black to-black">
@@ -61,21 +58,6 @@ export default function ExperiencePage() {
 
       <HandTracker />
       <RomanticScene />
-
-      <AnimatePresence>
-        {loveFormed && formationComplete && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="absolute bottom-12 left-1/2 -translate-x-1/2 z-50">
-            <Link
-              href="/gallery"
-              className="group relative px-8 py-4 bg-linear-to-r from-pink-600 to-purple-600 text-white rounded-full text-lg font-medium overflow-hidden transition-all hover:scale-110 shadow-[0_0_40px_rgba(236,72,153,0.6)] flex items-center gap-3">
-              <span>Buka Memori Kita</span>
-              <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-              </svg>
-            </Link>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Background Ambience */}
       <div className="fixed inset-0 pointer-events-none opacity-20">

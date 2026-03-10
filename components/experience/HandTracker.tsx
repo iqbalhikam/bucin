@@ -5,7 +5,6 @@ import { HandLandmarker, FilesetResolver, Landmark } from '@mediapipe/tasks-visi
 import { useExperienceStore } from '@/lib/experience/store';
 import { detectCustomGesture } from '@/lib/gestures/utils';
 import customGestures from '@/src/data/customGestures.json';
-import { useRouter } from 'next/navigation';
 
 export const HandTracker = React.memo(() => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -20,9 +19,6 @@ export const HandTracker = React.memo(() => {
   const heartGestureStartTime = useRef<number | null>(null);
   const calibrationDataRef = useRef(calibrationData);
   const trackingStartTime = useRef<number | null>(null);
-  const router = useRouter();
-  const galleryGestureStartTime = useRef<number | null>(null);
-  const isRouting = useRef(false);
 
   useEffect(() => {
     calibrationDataRef.current = calibrationData;
@@ -60,6 +56,7 @@ export const HandTracker = React.memo(() => {
         [5, 9],
         [9, 13],
         [13, 17],
+        [5, 17],
       ];
 
       multiHandLandmarks.forEach((landmarks, index) => {
@@ -126,13 +123,10 @@ export const HandTracker = React.memo(() => {
             if (ctx) drawHands(ctx, results.landmarks);
           }
 
-          // Single Hand interaction (for cursor)
           const primaryHand = results.landmarks[0];
-
           const thumbTip = primaryHand[4];
           const indexTip = primaryHand[8];
 
-          // Pinch for primary hand
           const pinchDist = Math.sqrt(Math.pow(thumbTip.x - indexTip.x, 2) + Math.pow(thumbTip.y - indexTip.y, 2));
           const pinching = pinchDist < 0.05;
           if (store.isPinching !== pinching) store.setIsPinching(pinching);
@@ -145,74 +139,39 @@ export const HandTracker = React.memo(() => {
           const newY = lastPos.current.y + (targetY - lastPos.current.y) * smoothing;
           lastPos.current = { x: newX, y: newY };
 
-          // Safely mutate high-frequency data bypassing React renders:
           useExperienceStore.setState({
             handLandmarks: primaryHand,
             handPos: { x: newX, y: newY },
           });
 
-          // Custom Gesture Detection (ILOVEYOU & ILOVEYOUDELVAGRISHELA)
           let customMatched = false;
           let matchedName = '';
 
-          if (results.landmarks.length > 0) {
-            for (const hand of results.landmarks) {
-              for (const template of customGestures) {
-                const { matched } = detectCustomGesture(hand, template.landmarks[0] as Landmark[], 0.18);
-
-                // COMPLETELY REMOVED isInZone check. If it matches, accept it anywhere!
-                if (matched) {
-                  customMatched = true;
-                  matchedName = template.name;
-                  break;
-                }
-              }
-              if (customMatched) break; // Stop checking other hands if matched
-            }
-          }
-
-          // Handle Gallery Navigation Gesture
-          if (matchedName === 'OPEN_GALLERY') {
-            if (!galleryGestureStartTime.current) {
-              galleryGestureStartTime.current = performance.now();
-            }
-            const elapsedGallery = performance.now() - galleryGestureStartTime.current;
-
-            if (canvasRef.current) {
-              const ctx = canvasRef.current.getContext('2d');
-              if (ctx) {
-                const percent = Math.min(100, Math.round((elapsedGallery / 2000) * 100));
-                ctx.fillStyle = '#8a2be2';
-                ctx.font = 'bold 32px Outfit, sans-serif';
-                ctx.fillText(`MEMBUKA GALERI... ${percent}%`, 140, 80);
-                ctx.fillRect(180, 100, 200 * (percent / 100), 10);
+          for (const hand of results.landmarks) {
+            for (const template of customGestures) {
+              const { matched } = detectCustomGesture(hand, template.landmarks[0] as Landmark[], 0.18);
+              if (matched) {
+                customMatched = true;
+                matchedName = template.name;
+                break;
               }
             }
-
-            if (elapsedGallery > 2000 && !isRouting.current) {
-              isRouting.current = true;
-              router.push('/gallery');
-            }
-          } else {
-            // Reset gallery timer if gesture is lost
-            galleryGestureStartTime.current = null;
+            if (customMatched) break;
           }
 
-          // Handle Text Formation Gestures
-          if (customMatched && matchedName !== 'OPEN_GALLERY') {
+          if (customMatched) {
             const { setFormationText, formationText } = useExperienceStore.getState();
             let targetText = 'I LOVE YOU';
-
             if (matchedName.startsWith('ILOVEYOUDELVAGRISHELA')) {
               targetText = 'I LOVE YOU\nDELVA GRISHELA';
+            } else if (matchedName === 'OPEN_GALLERY') {
+              targetText = 'MEMORI KITA';
             }
-
             if (formationText !== targetText) {
               setFormationText(targetText);
             }
           }
 
-          // Two-Handed Heart Detection
           let heartMatched = false;
           if (results.landmarks.length === 2) {
             const hand1 = results.landmarks[0];
@@ -241,7 +200,6 @@ export const HandTracker = React.memo(() => {
                 isSymmetrical &&
                 isHorizontallyAligned;
             } else {
-              // Be more lenient for uncalibrated users
               heartMatched = thumbDist < 0.1 && indexDist < 0.1 && wristDist < 0.35 && isVerticallyCorrect && isSymmetrical && isHorizontallyAligned && isNotFlat;
             }
 
@@ -296,7 +254,6 @@ export const HandTracker = React.memo(() => {
             }
 
             if (elapsed > 100 && !store.loveFormed) {
-              // Quicker reaction
               store.setLoveFormed(true);
             }
           } else {
@@ -306,7 +263,6 @@ export const HandTracker = React.memo(() => {
             }
           }
 
-          // Fallback reveal timer
           if (!trackingStartTime.current) trackingStartTime.current = performance.now();
 
           if (statusOverlayRef.current) {
@@ -355,19 +311,16 @@ export const HandTracker = React.memo(() => {
         (videoElement.srcObject as MediaStream).getTracks().forEach((track) => track.stop());
       }
     };
-  }, [experienceStarted, router]);
+  }, [experienceStarted]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() === 'c') {
         isCalibratingRef.current = !isCalibratingRef.current;
-        console.log('Calibration mode:', isCalibratingRef.current ? 'ON' : 'OFF');
         if (!isCalibratingRef.current && metricsRef.current) {
           useExperienceStore.getState().setCalibrationData(metricsRef.current);
-          console.log('Saved calibration:', metricsRef.current);
         }
       }
-
       if (e.key === 'Shift') {
         if (e.repeat) return;
         useExperienceStore.setState({ isShiftPressed: true });
@@ -386,8 +339,6 @@ export const HandTracker = React.memo(() => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
-
-      // Safety clean up
       useExperienceStore.setState({ isShiftPressed: false });
     };
   }, []);
@@ -411,7 +362,7 @@ export const HandTracker = React.memo(() => {
           height: '100%',
           borderRadius: '12px',
           objectFit: 'cover',
-          transform: 'scaleX(-1)', // Mirror
+          transform: 'scaleX(-1)',
           border: '2px solid rgba(255, 255, 255, 0.2)',
         }}
         muted
@@ -431,15 +382,7 @@ export const HandTracker = React.memo(() => {
           pointerEvents: 'none',
         }}
       />
-      <div
-        ref={statusOverlayRef}
-        className="absolute top-2 left-2 px-2 py-0.5 rounded text-[10px] font-bold tracking-tighter uppercase transition-all duration-200"
-        style={{
-          backgroundColor: 'rgba(239, 68, 68, 0.8)',
-          color: 'white',
-          transform: 'scale(1)',
-          textShadow: '0 1px 2px rgba(0,0,0,0.5)',
-        }}>
+      <div ref={statusOverlayRef} className="absolute top-2 left-2 px-2 py-0.5 rounded text-[10px] font-bold tracking-tighter uppercase transition-all duration-200" style={{ backgroundColor: 'rgba(239, 68, 68, 0.8)', color: 'white' }}>
         Mencari...
       </div>
     </div>
