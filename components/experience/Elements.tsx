@@ -25,6 +25,32 @@ const HEART_SHAPE = (() => {
   return shape;
 })();
 
+const HAND_CONNECTIONS = [
+  [0, 1],
+  [1, 2],
+  [2, 3],
+  [3, 4],
+  [0, 5],
+  [5, 6],
+  [6, 7],
+  [7, 8],
+  [0, 9],
+  [9, 10],
+  [10, 11],
+  [11, 12],
+  [0, 13],
+  [13, 14],
+  [14, 15],
+  [15, 16],
+  [0, 17],
+  [17, 18],
+  [18, 19],
+  [19, 20],
+  [5, 9],
+  [9, 13],
+  [13, 17],
+];
+
 export const Heart = ({ position, scale = 0.8, color = '#ff2d55' }: HeartProps) => {
   const mesh = useRef<THREE.Mesh>(null);
 
@@ -63,7 +89,6 @@ export const Heart = ({ position, scale = 0.8, color = '#ff2d55' }: HeartProps) 
   );
 };
 
-// Deterministic pseudo-random generator
 const seededRandom = (seed: number) => {
   const x = Math.sin(seed) * 10000;
   return x - Math.floor(x);
@@ -124,32 +149,6 @@ export const DynamicShape = ({ type, position, color = '#ff2d55', scale = 1 }: {
     </RigidBody>
   );
 };
-
-const HAND_CONNECTIONS = [
-  [0, 1],
-  [1, 2],
-  [2, 3],
-  [3, 4],
-  [0, 5],
-  [5, 6],
-  [6, 7],
-  [7, 8],
-  [0, 9],
-  [9, 10],
-  [10, 11],
-  [11, 12],
-  [0, 13],
-  [13, 14],
-  [14, 15],
-  [15, 16],
-  [0, 17],
-  [17, 18],
-  [18, 19],
-  [19, 20],
-  [5, 9],
-  [9, 13],
-  [13, 17],
-];
 
 export const HeartFormation = () => {
   const meshRef = useRef<THREE.InstancedMesh>(null);
@@ -243,16 +242,16 @@ export const HeartFormation = () => {
 
   const dummy = useRef(new THREE.Object3D());
   const tempVec = useRef(new THREE.Vector3());
-  const swarmTarget = useRef(new THREE.Vector3());
   const landmarkA = useRef(new THREE.Vector3());
   const landmarkB = useRef(new THREE.Vector3());
+  const finalTarget = useRef(new THREE.Vector3());
   const transitionValue = useRef(0);
   const rendererFade = useRef(0);
 
   useFrame((state, delta) => {
     if (!meshRef.current) return;
 
-    const { isTracking, loveFormed, handLandmarks } = useExperienceStore.getState();
+    const { handLandmarks, isTracking, loveFormed } = useExperienceStore.getState();
 
     const targetTransition = loveFormed ? 1 : 0;
     transitionValue.current = THREE.MathUtils.lerp(transitionValue.current, targetTransition, delta * 1.5);
@@ -282,23 +281,31 @@ export const HeartFormation = () => {
       const p = particles[i];
       const { target, random, rotation, speed, boneIndex, boneT } = p;
 
+      // Start with the base position (interpolated between scatter and text)
       tempVec.current.lerpVectors(random, target, lerpFactor);
 
-      if (!loveFormed && isTracking && handLandmarks && handLandmarks.length > 20) {
+      // --- Hand Swarm Logic ---
+      if (isTracking && !loveFormed && handLandmarks && handLandmarks.length > 20) {
         const connection = HAND_CONNECTIONS[boneIndex];
         const lmA = handLandmarks[connection[0]];
         const lmB = handLandmarks[connection[1]];
 
+        // Map MediaPipe landmarks to world coordinates: x: (1 - x - 0.5) * 25, y: -(y - 0.5) * 15, z: -z * 20
         landmarkA.current.set((1 - lmA.x - 0.5) * 25, -(lmA.y - 0.5) * 15, -lmA.z * 20);
         landmarkB.current.set((1 - lmB.x - 0.5) * 25, -(lmB.y - 0.5) * 15, -lmB.z * 20);
 
-        swarmTarget.current.lerpVectors(landmarkA.current, landmarkB.current, boneT);
-        swarmTarget.current.x += Math.sin(t * 2 + i) * 0.2;
-        swarmTarget.current.y += Math.cos(t * 2.1 + i) * 0.2;
+        // Interpolate between bone start and end
+        finalTarget.current.lerpVectors(landmarkA.current, landmarkB.current, boneT);
 
-        tempVec.current.lerp(swarmTarget.current, 0.15);
+        // Add subtle movement to particles along the bone
+        finalTarget.current.x += Math.sin(t * 2 + i) * 0.1;
+        finalTarget.current.y += Math.cos(t * 2 + i) * 0.1;
+
+        // Transition from the current base (scatter/random) to the swarm target
+        tempVec.current.lerp(finalTarget.current, 0.15);
       }
 
+      // Slow-motion floating / Random motion
       if (lerpFactor > 0.01) {
         tempVec.current.y += Math.sin(t * 0.5 + i) * 0.05 * lerpFactor;
         tempVec.current.x += Math.cos(t * 0.4 + i) * 0.04 * lerpFactor;
