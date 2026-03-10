@@ -1,36 +1,39 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🌌 Bucin - Our Universe
 
-## Getting Started
+**"A little universe created just for us. From Iqbal to Delva."**
 
-First, run the development server:
+Proyek ini adalah sebuah pengalaman web interaktif dan romantis yang dirancang khusus dengan teknologi 3D dan pelacakan tangan (*hand tracking*). Pengguna dapat berinteraksi dengan dunia 3D (seperti objek hati dan partikel bercahaya) hanya dengan menggunakan gerakan tangan di depan kamera.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## ✨ Fitur Utama
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **Pelacakan Tangan Real-time (*Hand Tracking*)**: Menggunakan model Machine Learning dari MediaPipe untuk melacak gerakan dan posisi tangan pengguna melalui webcam.
+- **Deteksi Gestur Romantis**:
+  - **Gestur Hati (*Two-Handed Heart*)**: Mendeteksi ketika pengguna menyatukan kedua tangan untuk membentuk simbol hati.
+  - **Gestur Kustom**: Mendeteksi gestur tangan spesifik untuk memunculkan pesan rahasia seperti "I LOVE YOU" atau "I LOVE YOU DELVA GRISHELA".
+- **Lingkungan 3D Interaktif**: Render grafis 3D menggunakan React Three Fiber. Kamera di dalam dunia 3D dapat dikendalikan langsung oleh pergerakan tangan pengguna (*Hand Controlled Camera*).
+- **Simulasi Fisika 3D**: Objek di dalam *scene* bereaksi terhadap gravitasi dan benturan menggunakan *physics engine* dari Rapier.
+- **Efek Visual (*Post-processing*)**: Menampilkan efek visual *Bloom* untuk membuat partikel dan objek hati terlihat menyala (*glowing*) dan magis.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🛠️ Teknologi yang Digunakan
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Proyek ini dibangun dengan *stack* teknologi modern web:
 
-## Learn More
+- **[Next.js](https://nextjs.org/)** (v16.1.6) - *Framework* React untuk *routing* dan antarmuka utama.
+- **[React Three Fiber](https://docs.pmnd.rs/react-three-fiber)** & **[Three.js](https://threejs.org/)** - Digunakan untuk membuat dan me-render grafik 3D di dalam *browser*.
+- **[@react-three/rapier](https://github.com/pmndrs/react-three-rapier)** - *Physics engine* untuk objek 3D.
+- **[@mediapipe/tasks-vision](https://developers.google.com/mediapipe)** - Digunakan untuk mendeteksi *landmark* tangan (Computer Vision).
+- **[Zustand](https://github.com/pmndrs/zustand)** - Untuk manajemen *state* aplikasi (seperti melacak status apakah gestur hati sudah terbentuk).
+- **[Framer Motion](https://www.framer.com/motion/)** - Digunakan untuk animasi transisi UI yang mulus pada halaman beranda.
+- **[Tailwind CSS](https://tailwindcss.com/)** - *Utility-first* CSS untuk *styling* antarmuka.
 
-To learn more about Next.js, take a look at the following resources:
+## 🚀 Cara Menjalankan Proyek Secara Lokal
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Prasyarat
+Pastikan Anda sudah menginstal **Node.js** di komputer Anda. Perangkat Anda juga harus memiliki **webcam / kamera** yang berfungsi.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Instalasi
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Kloning repositori ini ke dalam komputer Anda.
+2. Buka terminal, arahkan ke direktori proyek, lalu instal semua dependensi:
+   ```bash
+   npm install
