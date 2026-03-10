@@ -8,8 +8,7 @@ Proyek ini adalah sebuah pengalaman web interaktif dan romantis yang dirancang k
 
 - **Pelacakan Tangan Real-time (*Hand Tracking*)**: Menggunakan model Machine Learning dari MediaPipe untuk melacak gerakan dan posisi tangan pengguna melalui webcam.
 - **Deteksi Gestur Romantis**:
-  - **Gestur Hati (*Two-Handed Heart*)**: Mendeteksi ketika pengguna menyatukan kedua tangan untuk membentuk simbol hati.
-  - **Gestur Kustom**: Mendeteksi gestur tangan spesifik untuk memunculkan pesan rahasia seperti "I LOVE YOU" atau "I LOVE YOU DELVA GRISHELA".
+  - **Gestur Kustom**: Mendeteksi gestur tangan spesifik untuk memunculkan pesan rahasia seperti "I LOVE YOU" atau "I LOVE YOU [Nama Pacar U]".
 - **Lingkungan 3D Interaktif**: Render grafis 3D menggunakan React Three Fiber. Kamera di dalam dunia 3D dapat dikendalikan langsung oleh pergerakan tangan pengguna (*Hand Controlled Camera*).
 - **Simulasi Fisika 3D**: Objek di dalam *scene* bereaksi terhadap gravitasi dan benturan menggunakan *physics engine* dari Rapier.
 - **Efek Visual (*Post-processing*)**: Menampilkan efek visual *Bloom* untuk membuat partikel dan objek hati terlihat menyala (*glowing*) dan magis.
@@ -37,3 +36,15 @@ Pastikan Anda sudah menginstal **Node.js** di komputer Anda. Perangkat Anda juga
 2. Buka terminal, arahkan ke direktori proyek, lalu instal semua dependensi:
    ```bash
    npm install
+3. Jalankan server pengembangan:
+   ```bash
+   npm run dev
+
+## 🎮 Cara Menggunakan (Interaksi)
+1. Buka aplikasi di browser. Anda akan disambut oleh halaman utama "Our Universe".
+2. Klik tombol "Enter Our World".
+3. Penting: Browser akan meminta izin untuk mengakses kamera (Webcam). Izinkan akses tersebut agar pelacakan tangan bisa berjalan.
+4. Jauhkan tangan Anda sedikit dari kamera agar seluruh bagian tangan terlihat.
+5. Lakukan gestur berikut untuk berinteraksi:
+     - Geestur ✊ & ☝️: untuk mengeluarkan text yang di susun dengan partikel partikel kecil
+     - Gerakkan Tangan: Setelah animasi 3D muncul, gerakkan tangan Anda untuk mengontrol arah pandangan kamera 3D di layar.
